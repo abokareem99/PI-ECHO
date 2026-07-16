@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>باي إيكو | Pi Echo</title>
-    <link rel="icon" type="image/png" href="eagle-logo.png">
+    <link class="rounded-full" rel="icon" type="image/png" href="eagle-logo.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght=300;400;600;700;800&display=swap" rel="stylesheet">
@@ -15,6 +15,11 @@
         body {
             font-family: 'Cairo', sans-serif;
             background-color: #0d0614;
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
         }
         ::-webkit-scrollbar {
             width: 6px;
@@ -49,13 +54,32 @@
             0% { transform: scaleY(0.3); }
             100% { transform: scaleY(1.1); }
         }
+
+        /* حماية وحل أزرار التلفون السفلية لرفعها وجعلها متجاوبة */
+        .mobile-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            z-index: 45;
+            background-color: #150b22;
+            border-top: 2px solid #e5a93b;
+            box-shadow: 0 -4px 20px rgba(229, 169, 59, 0.15);
+            padding-top: 12px;
+            padding-bottom: calc(12px + env(safe-area-inset-bottom));
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
     </style>
 </head>
-<body class="text-gray-100 min-h-screen flex flex-col justify-between">
+<body class="text-gray-100">
 
-    <!-- الهيدر الرئيسي -->
     <header class="sticky top-0 z-40 bg-[#150b22] border-b-2 border-[#e5a93b] shadow-[0_4px_20px_rgba(229,169,59,0.15)] px-4 lg:px-8 py-3 flex items-center justify-between">
         <div class="flex items-center gap-3">
+            <button onclick="toggleMobileSidebar()" class="md:hidden text-[#e5a93b] hover:text-yellow-400 text-xl transition-all ml-1" title="القائمة">
+                <i class="fa-solid fa-bars"></i>
+            </button>
             <img src="eagle-logo.png" alt="شعار باي إيكو" class="w-10 h-10 rounded-full border border-[#e5a93b]/40 object-cover shadow-md">
             <span class="text-xl font-extrabold tracking-wider bg-gradient-to-r from-[#e5a93b] to-yellow-400 bg-clip-text text-transparent">باي <span class="text-purple-400">إيكو</span></span>
         </div>
@@ -78,11 +102,56 @@
         </div>
     </header>
 
-    <div class="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 py-6 grid grid-cols-1 md:grid-cols-4 gap-6">
+    <div id="mobile-sidebar-overlay" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden transition-opacity duration-300 opacity-0" onclick="toggleMobileSidebar()"></div>
+    <aside id="mobile-sidebar" class="fixed top-0 right-0 h-full w-72 bg-[#150b22] border-l-2 border-[#e5a93b] z-50 transform translate-x-full transition-transform duration-300 ease-in-out p-5 flex flex-col justify-between overflow-y-auto">
+        <div>
+            <div class="flex justify-between items-center pb-4 border-b border-[#e5a93b]/20 mb-4">
+                <span class="font-bold text-sm text-[#e5a93b]">باي إيكو</span>
+                <button onclick="toggleMobileSidebar()" class="text-gray-400 hover:text-white text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <div class="flex flex-col items-center text-center bg-[#1d102f] p-4 rounded-xl border border-[#e5a93b]/20 mb-4">
+                <div class="relative">
+                    <img id="mobile-sidebar-avatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=AboKareem" alt="Avatar" class="w-16 h-16 rounded-full border-2 border-[#e5a93b] object-cover">
+                    <button onclick="openEditProfileModal(); toggleMobileSidebar();" class="absolute bottom-0 right-0 bg-[#e5a93b] text-[#0d0614] rounded-full p-1.5 text-[10px] hover:bg-yellow-500">
+                        <i class="fa-solid fa-pen"></i>
+                    </button>
+                </div>
+                <h3 id="mobile-sidebar-username" class="font-bold text-base text-gray-100 mt-2">أبو كريم</h3>
+                <p id="mobile-sidebar-bio" class="text-[11px] text-gray-400 mt-1 italic line-clamp-2">
+                    مهتم بتطوير مشاريع الويب 3 ودعم مجتمع باي في الوطن العربي.
+                </p>
+            </div>
 
-        <!-- القائمة الجانبية اليمنى -->
+            <nav class="space-y-1">
+                <a href="#" onclick="toggleMobileSidebar()" class="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-gradient-to-l from-[#5c1f75]/30 to-transparent text-[#e5a93b] font-semibold border-r-4 border-[#e5a93b]">
+                    <i class="fa-solid fa-house text-base"></i>
+                    <span>الرئيسية</span>
+                </a>
+                <a href="#" onclick="toggleMobileSidebar()" class="flex items-center gap-3 px-4 py-2.5 text-gray-300 hover:bg-[#211434] hover:text-[#e5a93b] transition-all">
+                    <i class="fa-regular fa-compass text-base"></i>
+                    <span>استكشف</span>
+                </a>
+                <a href="#" onclick="toggleMobileSidebar()" class="flex items-center gap-3 px-4 py-2.5 text-gray-300 hover:bg-[#211434] hover:text-[#e5a93b] transition-all">
+                    <i class="fa-regular fa-message text-base"></i>
+                    <span>الرسائل</span>
+                </a>
+                <hr class="border-[#e5a93b]/20 my-3">
+                <button onclick="openSupportModal(0, 'نظام الدعوات'); toggleMobileSidebar();" class="w-full bg-gradient-to-r from-[#e5a93b] to-yellow-500 text-[#0d0614] font-bold py-2.5 px-4 rounded-xl shadow-md hover:from-yellow-500 hover:to-yellow-600 transition-all text-xs">
+                    <i class="fa-solid fa-user-plus ml-2"></i>دعوة صديق لباي
+                </button>
+            </nav>
+        </div>
+        <div class="text-center text-[10px] text-gray-500 pt-3 border-t border-[#e5a93b]/10">
+            تصميم وتطوير أبو كريم © 2026
+        </div>
+    </aside>
+
+    <div class="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 py-6 pb-28 md:pb-6 grid grid-cols-1 md:grid-cols-4 gap-6">
+
         <aside class="hidden md:block md:col-span-1 space-y-4">
-            <!-- الحاوية الذهبية لملف المستخدم -->
             <div class="bg-[#150b22] p-5 rounded-2xl border-2 border-[#e5a93b] shadow-[0_0_15px_rgba(229,169,59,0.1)] space-y-4">
                 <div class="flex flex-col items-center text-center">
                     <div class="relative group">
@@ -109,7 +178,6 @@
                 </div>
             </div>
 
-            <!-- الحاوية الذهبية للتنقل والموقع -->
             <nav class="space-y-1 bg-[#150b22] p-4 rounded-2xl border-2 border-[#e5a93b] shadow-[0_0_15px_rgba(229,169,59,0.1)]">
                 <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-l from-[#5c1f75]/30 to-transparent text-[#e5a93b] font-semibold border-r-4 border-[#e5a93b]">
                     <i class="fa-solid fa-house text-lg"></i>
@@ -133,16 +201,13 @@
             </nav>
         </aside>
 
-        <!-- القسم الأوسط (المنشورات والتفاعل) -->
         <main class="col-span-1 md:col-span-2 space-y-6">
-            <!-- الحاوية الذهبية لإنشاء منشور -->
             <div class="bg-[#150b22] border-2 border-[#e5a93b] shadow-[0_0_15px_rgba(229,169,59,0.15)] rounded-2xl p-4">
                 <div class="flex gap-3">
                     <img id="feed-post-avatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=AboKareem" alt="User Avatar" class="w-10 h-10 rounded-full border border-[#e5a93b]/40 object-cover">
                     <div class="flex-1">
                         <textarea id="post-input" placeholder="ماذا يدور في ذهنك اليوم يا رائد؟" rows="3" class="w-full bg-[#1b0e2b] rounded-xl p-3 text-sm text-gray-200 placeholder-gray-500 border border-[#e5a93b]/30 focus:border-[#e5a93b] focus:outline-none resize-none transition-all"></textarea>
                         
-                        <!-- معاينة الصورة المحددة -->
                         <div id="image-preview-container" class="hidden relative mt-3 rounded-xl overflow-hidden border border-[#e5a93b]/40 bg-black max-h-60 flex justify-center items-center">
                             <img id="image-preview" class="max-h-60 w-full object-cover" src="">
                             <button onclick="removeImageSelection()" class="absolute top-2 left-2 bg-red-600/90 text-white hover:bg-red-700 transition-colors w-8 h-8 rounded-full flex items-center justify-center shadow-lg">
@@ -150,7 +215,6 @@
                             </button>
                         </div>
 
-                        <!-- معاينة الفيديو المحدد -->
                         <div id="video-preview-container" class="hidden relative mt-3 rounded-xl overflow-hidden border border-[#e5a93b]/40 bg-black max-h-60 flex justify-center items-center">
                             <video id="video-preview" class="max-h-60 w-full" controls></video>
                             <button onclick="removeVideoSelection()" class="absolute top-2 left-2 bg-red-600/90 text-white hover:bg-red-700 transition-colors w-8 h-8 rounded-full flex items-center justify-center shadow-lg">
@@ -161,13 +225,11 @@
                 </div>
                 <div class="flex items-center justify-between mt-3 pt-3 border-t border-[#e5a93b]/20">
                     <div class="flex gap-2 text-gray-400">
-                        <!-- زر رفع الصور -->
                         <button onclick="triggerImageUpload()" class="p-2 hover:bg-[#211434] hover:text-[#e5a93b] rounded-lg transition-colors" title="إضافة صورة">
                             <i class="fa-regular fa-image text-lg"></i>
                         </button>
                         <input type="file" id="post-image-file" accept="image/*" class="hidden" onchange="previewSelectedImage(event)">
 
-                        <!-- زر رفع الفيديوهات -->
                         <button onclick="triggerVideoUpload()" class="p-2 hover:bg-[#211434] hover:text-[#e5a93b] rounded-lg transition-colors" title="إضافة فيديو">
                             <i class="fa-solid fa-video text-lg"></i>
                         </button>
@@ -183,13 +245,10 @@
                 </div>
             </div>
 
-            <!-- حاوية عرض المنشورات الفيد -->
             <div id="feed-container" class="space-y-6"></div>
         </main>
 
-        <!-- القائمة الجانبية اليسرى -->
         <aside class="hidden md:block md:col-span-1 space-y-6">
-            <!-- حاوية الدردشة الصوتية الجديدة (ذهبية) -->
             <div class="bg-[#150b22] border-2 border-[#e5a93b] shadow-[0_0_15px_rgba(229,169,59,0.15)] p-4 rounded-2xl space-y-4">
                 <h3 class="font-bold text-sm text-[#e5a93b] border-b border-[#e5a93b]/30 pb-2">
                     <i class="fa-solid fa-microphone-lines ml-2 animate-pulse"></i>الدردشة الصوتية المباشرة
@@ -206,7 +265,6 @@
                 </div>
             </div>
 
-            <!-- الحاوية الذهبية للأخبار -->
             <div class="bg-[#150b22] border-2 border-[#e5a93b] shadow-[0_0_15px_rgba(229,169,59,0.15)] p-4 rounded-2xl space-y-4">
                 <h3 class="font-bold text-sm text-[#e5a93b] border-b border-[#e5a93b]/30 pb-2">
                     <i class="fa-solid fa-circle-nodes ml-2"></i>أخبار الشبكة المفتوحة
@@ -225,15 +283,13 @@
         </aside>
     </div>
 
-    <!-- الفوتر للهواتف المحمولة -->
-    <footer class="md:hidden sticky bottom-0 bg-[#150b22] border-t-2 border-[#e5a93b] py-2.5 px-6 flex justify-around items-center text-gray-400 text-xl z-40">
+    <footer class="md:hidden mobile-footer text-gray-400 text-xl">
         <a href="#" class="text-[#e5a93b]"><i class="fa-solid fa-house"></i></a>
         <a href="#" onclick="openVoiceChatModal()" class="hover:text-[#e5a93b]"><i class="fa-solid fa-microphone-lines"></i></a>
         <a href="#" class="hover:text-[#e5a93b]" onclick="openEditProfileModal()"><i class="fa-regular fa-user"></i></a>
         <a href="#" class="hover:text-[#e5a93b]"><i class="fa-regular fa-message"></i></a>
     </footer>
 
-    <!-- البوب-أب الجديد للدردشة الصوتية (الروم الصوتي) -->
     <div id="voice-chat-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
         <div class="bg-[#150b22] border-2 border-[#e5a93b] rounded-3xl max-w-md w-full p-6 text-center space-y-6 shadow-[0_0_30px_rgba(229,169,59,0.3)] relative">
             <button onclick="closeVoiceChatModal()" class="absolute top-4 left-4 text-gray-400 hover:text-white text-lg">
@@ -247,7 +303,6 @@
                 <span id="voice-connection-status" class="text-xs text-green-400 font-semibold block mt-1">🟡 جاري الاتصال بالروم...</span>
             </div>
 
-            <!-- حركة موجات الصوت -->
             <div class="flex justify-center items-center py-4">
                 <div id="voice-bars-container" class="voice-wave hidden">
                     <div class="voice-bar"></div>
@@ -258,7 +313,6 @@
                 </div>
             </div>
 
-            <!-- الرواد الموجودين داخل الغرفة حالياً -->
             <div class="space-y-2">
                 <h4 class="text-xs text-gray-400 text-right">الرواد النشطين بالصوت (3):</h4>
                 <div class="grid grid-cols-3 gap-3">
@@ -279,7 +333,6 @@
                 </div>
             </div>
 
-            <!-- أزرار التحكم بالصوت -->
             <div class="flex justify-center gap-4 pt-4 border-t border-[#e5a93b]/20">
                 <button id="toggle-mic-btn" onclick="toggleMicrophone()" class="bg-[#211434] border border-[#e5a93b]/40 hover:border-[#e5a93b] text-[#e5a93b] w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-md">
                     <i id="mic-icon" class="fa-solid fa-microphone-slash text-lg"></i>
@@ -291,7 +344,6 @@
         </div>
     </div>
 
-    <!-- بوب-أب تعديل الملف الشخصي -->
     <div id="profile-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
         <div class="bg-[#150b22] border-2 border-[#e5a93b] rounded-3xl max-w-md w-full p-6 space-y-6 shadow-2xl relative">
             <button onclick="closeEditProfileModal()" class="absolute top-4 left-4 text-gray-400 hover:text-white text-lg">
@@ -322,7 +374,6 @@
         </div>
     </div>
 
-    <!-- بوب-أب دفع الباي (ساندبوكس/رسمي) -->
     <div id="payment-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
         <div class="bg-[#150b22] border-2 border-[#e5a93b] rounded-3xl max-w-md w-full p-6 text-center space-y-6 shadow-2xl relative">
             <button onclick="closeSupportModal()" class="absolute top-4 left-4 text-gray-400 hover:text-white text-lg">
@@ -437,6 +488,35 @@
             document.getElementById('sidebar-user-avatar').src = currentUser.avatar;
             document.getElementById('sidebar-user-name').innerText = currentUser.username;
             document.getElementById('sidebar-user-bio').innerText = currentUser.bio || "لا يوجد بايو محدد.";
+            
+            // تحديث القائمة الجانبية للهاتف أيضاً لمنع تضارب البيانات
+            const mobAvatar = document.getElementById('mobile-sidebar-avatar');
+            const mobName = document.getElementById('mobile-sidebar-username');
+            const mobBio = document.getElementById('mobile-sidebar-bio');
+            if (mobAvatar) mobAvatar.src = currentUser.avatar;
+            if (mobName) mobName.innerText = currentUser.username;
+            if (mobBio) mobBio.innerText = currentUser.bio || "لا يوجد بايو محدد.";
+        }
+
+        // فتح وإغلاق القائمة الجانبية للهاتف بنعومة وسلاسة
+        function toggleMobileSidebar() {
+            const sidebar = document.getElementById('mobile-sidebar');
+            const overlay = document.getElementById('mobile-sidebar-overlay');
+            if (sidebar.classList.contains('translate-x-full')) {
+                sidebar.classList.remove('translate-x-full');
+                sidebar.classList.add('translate-x-0');
+                overlay.classList.remove('hidden');
+                setTimeout(() => {
+                    overlay.classList.remove('opacity-0');
+                    overlay.classList.add('opacity-100');
+                }, 10);
+            } else {
+                sidebar.classList.add('translate-x-full');
+                sidebar.classList.remove('translate-x-0');
+                overlay.classList.remove('opacity-100');
+                overlay.classList.add('opacity-0');
+                setTimeout(() => overlay.classList.add('hidden'), 300);
+            }
         }
 
         function updateSDKStatus(text, className = "text-gray-300") {
@@ -555,12 +635,10 @@
             alert("تم تفعيل الوضع التجريبي بنجاح! يمكنك الآن تجربة جميع مزايا المنصة ونشر الفيديوهات والتعليق بكامل حريتك.");
         }
 
-        // عمليات فتح وإغلاق بوب-أب الروم الصوتي (الدردشة الصوتية)
         function openVoiceChatModal() {
             document.getElementById('voice-chat-modal').classList.remove('hidden');
             document.getElementById('voice-chat-modal').classList.add('flex');
             
-            // محاكاة بدء الاتصال
             isConnectingVoice = true;
             document.getElementById('voice-connection-status').innerText = "🟡 جاري الاتصال بالروم...";
             document.getElementById('voice-connection-status').className = "text-xs text-yellow-400 font-semibold block mt-1 animate-pulse";
@@ -580,7 +658,6 @@
             document.getElementById('voice-chat-modal').classList.add('hidden');
             document.getElementById('voice-chat-modal').classList.remove('flex');
             
-            // إعادة ضبط زر المايك
             isMicMuted = true;
             const micIcon = document.getElementById('mic-icon');
             const micBtn = document.getElementById('toggle-mic-btn');
@@ -588,7 +665,6 @@
             micBtn.className = "bg-[#211434] border border-[#e5a93b]/40 hover:border-[#e5a93b] text-[#e5a93b] w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-md";
         }
 
-        // تفعيل وكتم المايك بالروم الصوتي
         function toggleMicrophone() {
             isMicMuted = !isMicMuted;
             const micIcon = document.getElementById('mic-icon');
@@ -605,13 +681,12 @@
             }
         }
 
-        // رفع الصور وإدارتها
         function triggerImageUpload() {
             document.getElementById('post-image-file').click();
         }
 
         function previewSelectedImage(event) {
-            removeVideoSelection(); // يمنع خلط الملفات
+            removeVideoSelection(); 
             const file = event.target.files[0];
             if (file) {
                 const reader = new FileReader();
@@ -631,13 +706,12 @@
             document.getElementById('image-preview-container').classList.add('hidden');
         }
 
-        // رفع الفيديوهات وإدارتها
         function triggerVideoUpload() {
             document.getElementById('post-video-file').click();
         }
 
         function previewSelectedVideo(event) {
-            removeImageSelection(); // يمنع خلط الملفات
+            removeImageSelection(); 
             const file = event.target.files[0];
             if (file) {
                 const reader = new FileReader();
@@ -657,7 +731,6 @@
             document.getElementById('video-preview-container').classList.add('hidden');
         }
 
-        // النشر الجديد ودعم الوسائط بالكامل
         function createNewPost() {
             const textContent = document.getElementById('post-input').value.trim();
             if (!textContent && !selectedVideoDataUrl && !selectedImageDataUrl) {
@@ -722,13 +795,11 @@
             inputElement.value = "";
         }
 
-        // الرسم المتكامل للمنشورات مع الإطارات الذهبية الحصرية
         function renderPosts() {
             const container = document.getElementById('feed-container');
             container.innerHTML = "";
             
             posts.forEach(post => {
-                // تصفية الوسائط (صور أو فيديوهات)
                 let mediaHTML = '';
                 if (post.video) {
                     mediaHTML = `
@@ -758,7 +829,6 @@
                     `;
                 }
 
-                // دمج وتثبيت حدود الذهب الفخمة (border-2 border-[#e5a93b]) مع الظل الذهبي المضيء
                 const postHTML = `
                     <div class="bg-[#150b22] border-2 border-[#e5a93b] shadow-[0_0_15px_rgba(229,169,59,0.15)] rounded-2xl p-5 space-y-4">
                         <div class="flex items-center justify-between">

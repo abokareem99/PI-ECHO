@@ -1,18 +1,18 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const fetch = require('node-fetch');
+const axios = require('axios'); // تم استبدال node-fetch بـ axios لتفادي مشاكل التوافقية على Vercel
 
 const app = express();
 app.use(express.json());
 
 // تفعيل مشاركة الموارد لكي يتمكن الـ Frontend الخاص بك من الاتصال بالخادم الخلفي
 app.use(cors({
-    origin: '*' // في الإنتاج، يفضل استبداله برابط تطبيقك الفعلي على Vercel أو Netlify لزيادة الأمان
+    origin: '*' 
 }));
 
 const PI_API_URL = 'https://api.minepi.com/v2';
-const PI_API_KEY = process.env.PI_API_KEY; // يتم تعيينه في ملف .env
+const PI_API_KEY = process.env.PI_API_KEY; // يتم تعيينه في متغيرات بيئة Vercel
 
 // التحقق من وجود مفتاح API الخاص بباي
 if (!PI_API_KEY) {
@@ -28,26 +28,23 @@ app.post('/api/payments/approve', async (req, res) => {
     }
 
     try {
-        const response = await fetch(`${PI_API_URL}/payments/${paymentId}/approve`, {
-            method: 'POST',
+        // استخدام axios بدلاً من fetch لضمان التوافقية والأداء
+        const response = await axios.post(`${PI_API_URL}/payments/${paymentId}/approve`, {}, {
             headers: {
                 'Authorization': `Key ${PI_API_KEY}`,
                 'Content-Type': 'application/json'
             }
         });
 
-        const data = await response.json();
-
-        if (!response.ok) {
-            console.error("فشل الموافقة في خوادم باي:", data);
-            return res.status(response.status).json(data);
-        }
-
         console.log(`✅ تمت الموافقة بنجاح على الدفعة: ${paymentId}`);
-        return res.status(200).json(data);
+        return res.status(200).json(response.data);
 
     } catch (error) {
-        console.error("خطأ داخلي أثناء الموافقة:", error);
+        if (error.response) {
+            console.error("فشل الموافقة في خوادم باي:", error.response.data);
+            return res.status(error.response.status).json(error.response.data);
+        }
+        console.error("خطأ داخلي أثناء الموافقة:", error.message);
         return res.status(500).json({ error: 'حدث خطأ في الخادم الخلفي.' });
     }
 });
@@ -61,35 +58,33 @@ app.post('/api/payments/complete', async (req, res) => {
     }
 
     try {
-        const response = await fetch(`${PI_API_URL}/payments/${paymentId}/complete`, {
-            method: 'POST',
+        const response = await axios.post(`${PI_API_URL}/payments/${paymentId}/complete`, { txid }, {
             headers: {
                 'Authorization': `Key ${PI_API_KEY}`,
                 'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ txid })
+            }
         });
 
-        const data = await response.json();
-
-        if (!response.ok) {
-            console.error("فشل إكمال الدفعة في خوادم باي:", data);
-            return res.status(response.status).json(data);
-        }
-
         console.log(`🎉 تم إكمال واستلام الدفعة بنجاح! رقم المعاملة: ${txid}`);
-        // 💡 هنا يمكنك كتابة كود إضافي لإضافة الرصيد للمستلم في قاعدة بياناتك (مثل Supabase)
-        
-        return res.status(200).json(data);
+        return res.status(200).json(response.data);
 
     } catch (error) {
-        console.error("خطأ داخلي أثناء إكمال العملية:", error);
+        if (error.response) {
+            console.error("فشل إكمال الدفعة في خوادم باي:", error.response.data);
+            return res.status(error.response.status).json(error.response.data);
+        }
+        console.error("خطأ داخلي أثناء إكمال العملية:", error.message);
         return res.status(500).json({ error: 'حدث خطأ في الخادم الخلفي.' });
     }
 });
 
-// تشغيل الخادم
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`🚀 خادم دفع باي إيكو يعمل بنجاح على المنفذ: ${PORT}`);
-});
+// تشغيل الخادم محلياً للتطوير فقط (وليس على Vercel)
+if (process.env.NODE_ENV !== 'production') {
+    const PORT = process.env.PORT || 5000;
+    app.listen(PORT, () => {
+        console.log(`🚀 خادم دفع باي إيكو التجريبي يعمل على المنفذ: ${PORT}`);
+    });
+}
+
+// ⚠️ هام جداً لـ Vercel لكي يتمكن من معالجة الطلبات كـ Serverless Function
+module.exports = app;

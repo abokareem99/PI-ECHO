@@ -226,7 +226,7 @@
     </div>
 
     <script>
-        // تعريف معرف عميل Pi Network وتخزينه كمتغير ثابت
+        // تعريف معرف عميل Pi Network
         const NEXT_PUBLIC_PI_CLIENT_ID = "OLeVqKQkQDdhq7ad7fRV1YMLThIDYNkjj";
 
         let currentUser = {
@@ -241,7 +241,7 @@
         let activeRecipientName = null;
         let selectedVideoDataUrl = null; 
         let piInitAttempts = 0;
-        let lastPiError = "لم يتم الكشف عن خطأ حتى الآن. يرجى التأكد من تشغيل VPN قوي وفتح التطبيق من داخل متصفح Pi Browser.";
+        let lastPiError = "يرجى التأكد من تشغيل VPN قوي وفتح التطبيق من داخل متصفح Pi Browser.";
 
         const defaultPosts = [
             {
@@ -274,16 +274,42 @@
             }
         ];
 
+        // دوال آمنة للتعامل مع LocalStorage لتجنب توقف الموقع داخل متصفح Pi Browser
+        function safeGetItem(key) {
+            try {
+                return localStorage.getItem(key);
+            } catch (e) {
+                console.warn("تم حظر الوصول لـ LocalStorage من قبل المتصفح:", e);
+                return null;
+            }
+        }
+
+        function safeSetItem(key, value) {
+            try {
+                localStorage.setItem(key, value);
+            } catch (e) {
+                console.warn("فشل الكتابة على LocalStorage:", e);
+            }
+        }
+
         function initApp() {
-            const savedUser = localStorage.getItem('piecho_user_v2');
+            const savedUser = safeGetItem('piecho_user_v2');
             if (savedUser) {
-                currentUser = JSON.parse(savedUser);
+                try {
+                    currentUser = JSON.parse(savedUser);
+                } catch(e) {
+                    console.error("خطأ قراءة بيانات المستخدم:", e);
+                }
             }
             updateUserProfileDOM();
 
-            const savedPosts = localStorage.getItem('piconnect_posts_v3');
+            const savedPosts = safeGetItem('piconnect_posts_v3');
             if (savedPosts) {
-                posts = JSON.parse(savedPosts);
+                try {
+                    posts = JSON.parse(savedPosts);
+                } catch(e) {
+                    posts = defaultPosts;
+                }
             } else {
                 posts = defaultPosts;
                 savePostsToLocalStorage();
@@ -294,7 +320,7 @@
         }
 
         function savePostsToLocalStorage() {
-            localStorage.setItem('piconnect_posts_v3', JSON.stringify(posts));
+            safeSetItem('piconnect_posts_v3', JSON.stringify(posts));
         }
 
         function updateUserProfileDOM() {
@@ -305,81 +331,84 @@
             document.getElementById('sidebar-user-bio').innerText = currentUser.bio || "لا يوجد بايو محدد.";
         }
 
-        // دالة التهيئة مع دمج المتغير بنجاح وتنشيط Sandbox
+        // تحديث نص الحالة في الهيدر بشكل فوري وتفاعلي
+        function updateSDKStatus(text, className = "text-gray-300") {
+            const balanceElement = document.getElementById('user-pi-balance');
+            if (balanceElement) {
+                balanceElement.innerText = text;
+                balanceElement.className = `font-semibold text-xs md:text-sm ${className}`;
+            }
+        }
+
+        // دالة التهيئة التفاعلية
         function startPiSDKInitialization() {
+            updateSDKStatus("🔍 فحص مكتبة SDK...", "text-yellow-500/80 animate-pulse");
+            
             if (typeof Pi !== 'undefined') {
-                console.log("تم رصد مكتبة Pi SDK بنجاح. جاري التهيئة للتجربة...");
+                console.log("تم رصد مكتبة Pi SDK بنجاح.");
+                updateSDKStatus("⚙️ جاري تهيئة الاتصال...", "text-yellow-500");
                 try {
-                    // تم تعديل sandbox إلى true لتفعيل المحفظة التجريبية بنجاح
+                    // الكشف التلقائي: إذا كان المستخدم داخل متصفح Pi، نوقف الـ Sandbox ليعمل الربط الحقيقي، وإلا نفعله للتجربة الخارجية.
+                    const isPiBrowser = navigator.userAgent.includes("Pi") || window.location.href.includes("sandbox");
+                    const useSandbox = !isPiBrowser; 
+
                     Pi.init({ 
                         version: "2.0", 
-                        sandbox: true 
+                        sandbox: useSandbox 
                     });
+                    
+                    console.log("تمت تهيئة SDK بنجاح. يجرى الآن استدعاء نافذة تسجيل الدخول...");
+                    updateSDKStatus("🔑 طلب تسجيل الدخول...", "text-purple-400");
                     authenticatePiUser();
                 } catch (err) {
                     console.error("فشل تهيئة Pi SDK:", err);
-                    lastPiError = err.message || err;
-                    setConnectionStatusError();
+                    lastPiError = "خطأ تهيئة: " + (err.message || err);
+                    updateSDKStatus("❌ فشلت التهيئة", "text-red-400");
                 }
             } else {
                 piInitAttempts++;
-                if (piInitAttempts < 10) {
-                    console.log(`مكتبة Pi لم تحمل بعد، محاولة فحص أخرى (${piInitAttempts}/10)...`);
+                if (piInitAttempts < 15) {
+                    console.log(`مكتبة Pi لم تحمل بعد، محاولة فحص أخرى (${piInitAttempts}/15)...`);
                     setTimeout(startPiSDKInitialization, 500);
                 } else {
                     console.warn("تعذر رصد Pi SDK.");
-                    setExternalBrowserStatus();
+                    lastPiError = "لم يتم تحميل ملف pi-sdk.js. تأكد من جودة اتصال الإنترنت أو جرب VPN مغاير.";
+                    updateSDKStatus("🌐 متصفح خارجي (افتح بـ Pi)", "text-yellow-500");
                 }
             }
         }
 
-        // إكمال دالة المصادقة التي انقطعت
+        // دالة المصادقة وتسجيل الدخول المحدثة
         function authenticatePiUser() {
             const scopes = ['username', 'payments'];
             
-            // دالة استدعاء عند العثور على دفعات سابقة معلقة لم تكتمل
             function onIncompletePaymentFound(payment) {
                 console.log("تم العثور على دفعة معلقة غير مكتملة:", payment);
-                // يمكنك إرسال رقم المعرف لخادمك أو إتمامها تجريبياً
-                alert(`هناك دفعة معلقة برقم: ${payment.identifier}، يجب تسويتها.`);
+                alert(`هناك معاملة معلقة سابقة برقم: ${payment.identifier}. يرجى تسويتها.`);
             }
 
             Pi.authenticate(scopes, onIncompletePaymentFound)
                 .then(function(auth) {
                     console.log("تم تسجيل الدخول بنجاح عبر Pi:", auth);
+                    
                     currentUser.username = auth.user.username;
                     currentUser.avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${auth.user.username}`;
                     currentUser.isPiAuthenticated = true;
                     
                     updateUserProfileDOM();
+                    updateSDKStatus(`🟢 متصل: ${auth.user.username}`, "text-green-400");
                     
-                    const balanceElement = document.getElementById('user-pi-balance');
-                    balanceElement.innerText = "🟢 متصل بـ Pi (Sandbox)";
-                    balanceElement.className = "text-green-400 font-semibold text-xs md:text-sm";
-                    
-                    localStorage.setItem('piecho_user_v2', JSON.stringify(currentUser));
+                    safeSetItem('piecho_user_v2', JSON.stringify(currentUser));
                 })
                 .catch(function(error) {
                     console.error("فشل تسجيل الدخول لـ Pi:", error);
-                    lastPiError = error.message || JSON.stringify(error);
-                    setConnectionStatusError();
+                    lastPiError = "خطأ في المصادقة: " + (error.message || JSON.stringify(error));
+                    updateSDKStatus("❌ فشل ربط الحساب", "text-red-400");
                 });
         }
 
-        function setConnectionStatusError() {
-            const balanceElement = document.getElementById('user-pi-balance');
-            balanceElement.innerText = "❌ خطأ اتصال الـ SDK";
-            balanceElement.className = "text-red-400 font-semibold text-xs md:text-sm";
-        }
-
-        function setExternalBrowserStatus() {
-            const balanceElement = document.getElementById('user-pi-balance');
-            balanceElement.innerText = "🌐 متصفح خارجي (سجل عبر Pi)";
-            balanceElement.className = "text-yellow-500 font-semibold text-xs md:text-sm";
-        }
-
         function showDetailedPiError() {
-            alert(`تفاصيل الاتصال بالـ SDK:\n\n${lastPiError}\n\nتأكد دائماً من تفعيل الـ VPN وفتح الموقع من داخل تطبيق Pi Browser الرسمي.`);
+            alert(`تفاصيل الاتصال بـ SDK الحالي:\n\n${lastPiError}\n\nنصائح للربط:\n- تأكد من تفعيل VPN مستقر (مثل 1.1.1.1).\n- تأكد أن الرابط الحالي مسجل في بوابة develop.pi بدقة.`);
         }
 
         // التحكم في الملف الشخصي
@@ -418,7 +447,7 @@
                 currentUser.avatar = newAvatar;
                 
                 updateUserProfileDOM();
-                localStorage.setItem('piecho_user_v2', JSON.stringify(currentUser));
+                safeSetItem('piecho_user_v2', JSON.stringify(currentUser));
                 closeEditProfileModal();
             } else {
                 alert("يرجى إدخال اسم مستخدم صالح.");
@@ -619,8 +648,6 @@
             const callbacks = {
                 onReadyForServerApproval: function(paymentId) {
                     console.log("الدفعة جاهزة لموافقة الخادم الخلفي (Approval)، الرقم التعريفي للدفعة:", paymentId);
-                    // في بيئة التجربة الكاملة، تحتاج إلى إرسال هذا الرقم لخادمك (API) للاتفاق مع خوادم Pi.
-                    // للمحاكاة هنا:
                     alert(`تم إنشاء المعاملة بنجاح برقم: ${paymentId}. للتفعيل الفعلي، ستحتاج لربط خادم لإكمال الدورة المستندية.`);
                 },
                 onReadyForServerCompletion: function(paymentId, txid) {
@@ -641,8 +668,8 @@
             Pi.createPayment(paymentData, callbacks);
         }
 
-        // تشغيل التطبيق بالكامل عند تحميل الصفحة
-        window.onload = initApp;
+        // تشغيل التطبيق بالكامل فور تحميل نصوص الـ HTML لتجنب التأخر
+        window.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
 </html>

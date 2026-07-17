@@ -980,7 +980,6 @@
                     console.log("تمت الموافقة المبدئية، جاري توثيق الدفعة مع خادم Vercel:", paymentId);
                     payBtn.innerText = "⏳ جاري التوثيق والموافقة من الخادم...";
 
-                    // تم التحديث هنا لإضافة /payments/ ليتوافق تماماً مع الـ Backend
                     fetch(`${VERCEL_BACKEND_URL}/payments/approve`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -991,7 +990,6 @@
                         return response.json();
                     })
                     .then(data => {
-                        // خادم Vercel يقوم بإرجاع بيانات الموافقة مباشرة عند استخدام axios
                         if (data && data.approved) {
                             console.log("وافق الخادم بنجاح! جاري استدعاء الـ SDK للتوقيع...");
                             payBtn.innerText = "✍️ يرجى توقيع المعاملة في نافذة Pi...";
@@ -1002,15 +1000,15 @@
                     })
                     .catch(err => {
                         console.error("خطأ أثناء الاتصال بالخادم للموافقة:", err);
-                        alert("حدث خطأ في الخادم أثناء المصادقة على الدفعة: " + err.message);
-                        resetPayButton(payBtn);
+                        payBtn.innerText = "❌ فشل المصادقة على الدفعة من السيرفر";
+                        // تمت إزالة الـ alert المزعج هنا لتفادي مقاطعة المستخدم بنوافذ منبثقة غير مرغوبة
+                        setTimeout(() => resetPayButton(payBtn), 3000);
                     });
                 },
                 onReadyForServerCompletion: function(paymentId, txid) {
                     console.log("وقع الرواد المعاملة بنجاح، جاري ترحيل الـ TXID للإتمام والربط على البلوكشين:", txid);
                     payBtn.innerText = "🔗 جاري إرسال المعاملة للبلوكشين...";
 
-                    // تم التحديث هنا لإضافة /payments/ ليتوافق تماماً مع الـ Backend
                     fetch(`${VERCEL_BACKEND_URL}/payments/complete`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -1021,18 +1019,30 @@
                         return response.json();
                     })
                     .then(data => {
-                        if (data && data.completed) {
+                        // تعديل الشرط ليدعم النجاح المباشر أو النجاح الذكي للمعاملات المكتملة مسبقاً (already_completed)
+                        if (data && (data.completed || data.success)) {
                             Pi.completePayment(paymentId);
-                            alert(`🎉 ألف مبروك! تم إرسال الدعم بنجاح وإكمال الدورة البرمجية للدفعة.\nرقم المعاملة (TXID):\n${txid}`);
-                            closeSupportModal();
+                            
+                            // إظهار رسالة النجاح داخل الزر وإغلاق نافذة الدفع تلقائياً بشكل هادئ وسلس
+                            payBtn.className = "w-full bg-green-600 text-white font-bold py-3 rounded-xl";
+                            payBtn.innerText = "🎉 تم الدفع بنجاح!";
+                            
+                            setTimeout(() => {
+                                closeSupportModal();
+                                resetPayButton(payBtn);
+                            }, 2000);
                         } else {
                             throw new Error("فشل إغلاق المعاملة بالخادم.");
                         }
                     })
                     .catch(err => {
                         console.error("خطأ أثناء الاتصال بالخادم للإتمام:", err);
-                        alert("تنبيه: تم توقيع المعاملة ولكن فشل الخادم في الإتمام فوراً. سيتم محاولة معالجتها تلقائياً لاحقاً.");
-                        resetPayButton(payBtn);
+                        // تم إلغاء الـ alert هنا أيضاً! سيقوم التطبيق بتسجيل صامت ومحاولة المعالجة التلقائية لاحقاً دون إزعاج
+                        payBtn.innerText = "⚠️ لم يكتمل الرد، جاري التحقق التلقائي...";
+                        setTimeout(() => {
+                            closeSupportModal();
+                            resetPayButton(payBtn);
+                        }, 3000);
                     });
                 },
                 onCancel: function(paymentId) {
@@ -1041,8 +1051,8 @@
                 },
                 onError: function(error, payment) {
                     console.error("حدث خطأ غير متوقع أثناء الدفع:", error);
-                    alert("انتهت مهلة المعاملة أو فشلت المحاولة. يرجى التأكد من رصيدك في المحفظة، ومن أن خادم Vercel الخلفي نشط ولا يواجه مشاكل.");
-                    resetPayButton(payBtn);
+                    payBtn.innerText = "❌ فشلت عملية الدفع";
+                    setTimeout(() => resetPayButton(payBtn), 3000);
                 }
             };
 
@@ -1058,7 +1068,6 @@
 
         // إرسال تسوية المعاملات المعلقة للخلفية
         function completeIncompletePayment(paymentId, txid) {
-            // تم التحديث هنا لإضافة /payments/ ليتوافق تماماً مع الـ Backend
             fetch(`${VERCEL_BACKEND_URL}/payments/complete`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1066,7 +1075,7 @@
             })
             .then(res => res.json())
             .then(data => {
-                if (data && data.completed) {
+                if (data && (data.completed || data.success)) {
                     console.log("تمت تسوية الدفعة القديمة المعلقة بنجاح!");
                 }
             })

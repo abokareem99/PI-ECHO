@@ -72,8 +72,16 @@ app.post(['/api/payments/complete', '/payments/complete'], async (req, res) => {
 
     } catch (error) {
         if (error.response) {
-            console.error("فشل إكمال الدفعة في خوادم باي:", JSON.stringify(error.response.data));
-            return res.status(error.response.status).json(error.response.data);
+            const errorData = error.response.data;
+            
+            // 💡 معالجة ذكية: إذا كانت الدفعة مكتملة بالفعل في خوادم باي، نمررها كعملية ناجحة
+            if (errorData && errorData.error === "already_completed") {
+                console.log(`⚠️ الدفعة ${paymentId} مكتملة بالفعل على الشبكة. تم تمريرها بنجاح.`);
+                return res.status(200).json({ success: true, message: "Payment already completed successfully." });
+            }
+
+            console.error("فشل إكمال الدفعة في خوادم باي:", JSON.stringify(errorData));
+            return res.status(error.response.status).json(errorData);
         }
         console.error("خطأ داخلي أثناء إكمال العملية:", error.message);
         return res.status(500).json({ error: 'حدث خطأ في الخادم الخلفي: ' + error.message });

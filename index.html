@@ -76,7 +76,7 @@
 
     <header class="sticky top-0 z-40 bg-[#150b22] border-b-2 border-[#e5a93b] shadow-[0_4px_20px_rgba(229,169,59,0.15)] px-4 lg:px-8 py-3 flex items-center justify-between">
         <div class="flex items-center gap-3">
-            <button onclick="toggleMobileSidebar()" class="md:hidden text-[#e5a93b] hover:text-yellow-400 text-xl transition-all ml-1" title="القائمة">
+            <button onclick="window.toggleMobileSidebar()" class="md:hidden text-[#e5a93b] hover:text-yellow-400 text-xl transition-all ml-1" title="القائمة">
                 <i class="fa-solid fa-bars"></i>
             </button>
             <img src="eagle-logo.png" alt="شعار باي إيكو" class="w-10 h-10 rounded-full border border-[#e5a93b]/40 object-cover shadow-md">
@@ -401,11 +401,11 @@
 
     <!-- كود الجافا سكريبت الموحد والآمن باستخدام نظام الـ Module لـ Firebase و Pi SDK -->
     <script type="module">
-        // 1. استيراد دوال Firebase أولاً بنظام الموديول
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
-        import { getAuth } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
-        import { getStorage } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-storage.js";
+        // 1. استيراد دوال Firebase بالإصدار الصحيح
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getStorage } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
         // بيانات اتصال Firebase الخاصة بمشروعك
         const firebaseConfig = {
@@ -498,7 +498,7 @@
             }
             updateUserProfileDOM();
             
-            // بدء مراقبة قاعدة بيانات Firebase Firestore حياً بدلاً من التخزين المحلي
+            // بدء مراقبة قاعدة بيانات Firebase Firestore حياً
             listenToPostsFromFirebase();
             
             startPiSDKInitialization();
@@ -763,10 +763,10 @@
             const q = query(collection(window.firebaseDb, "posts"), orderBy("timestamp", "desc"));
             
             onSnapshot(q, (snapshot) => {
-                posts = [];
+                let fetchedPosts = [];
                 snapshot.forEach((doc) => {
                     const data = doc.data();
-                    posts.push({
+                    fetchedPosts.push({
                         id: doc.id,
                         author: data.author || "رائد مجهول",
                         badge: data.badge || "رائد",
@@ -777,11 +777,21 @@
                         video: data.video || null,
                         timestamp: data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleString('ar-EG', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }) : "الآن",
                         likes: data.likes || 0,
-                        likedByMe: data.likedByMe || false,
+                        likedByMe: false, // القيمة الافتراضية
                         comments: data.comments || []
                     });
                 });
                 
+                // الحفاظ على حالة الإعجاب المحلية للمستخدم
+                fetchedPosts.forEach(newPost => {
+                    const existingPost = posts.find(p => p.id === newPost.id);
+                    if(existingPost) {
+                        newPost.likedByMe = existingPost.likedByMe;
+                    }
+                });
+
+                posts = fetchedPosts;
+
                 // دمج المنشورات الافتراضية مع السحابية في حال خلو قاعدة البيانات مؤقتاً
                 if (posts.length === 0) {
                     posts = defaultPosts;
@@ -791,7 +801,7 @@
             });
         }
 
-        // دالة إنشاء المنشورات السحابية وحفظها الآمنة والمحدثة بالكامل
+        // دالة إنشاء المنشورات السحابية
         window.createNewPost = async function() {
             const postInput = document.getElementById('post-input');
             const textContent = postInput ? postInput.value.trim() : "";
@@ -804,25 +814,21 @@
 
             const isDemo = isBypassActive;
             
-            // 1. تجميد وتعطيل زر النشر فوراً وتغيير حالته البصرية لحين الرفع
             if (postBtn) {
                 postBtn.disabled = true;
                 postBtn.innerText = "جاري النشر...";
                 postBtn.className = "bg-gray-600 text-gray-400 font-bold px-5 py-1.5 rounded-lg text-sm cursor-not-allowed shadow-none";
             }
 
-            // حفظ المرفقات والنصوص الحالية محلياً لإرسالها
             const contentToSend = textContent;
             const imageToSend = selectedImageDataUrl || null;
             const videoToSend = selectedVideoDataUrl || null;
 
-            // 2. تفريغ الحقول فورا على شاشة العميل لمنع تجميد الواجهة والتكرار
             if (postInput) postInput.value = "";
             window.removeVideoSelection();
             window.removeImageSelection();
 
             try {
-                // 3. إرسال الطلب لـ Firebase Firestore
                 await addDoc(collection(window.firebaseDb, "posts"), {
                     author: currentUser.username,
                     badge: isDemo ? "وضع تجريبي" : "رائد وباني",
@@ -833,7 +839,6 @@
                     video: videoToSend,
                     timestamp: serverTimestamp(),
                     likes: 0,
-                    likedByMe: false,
                     comments: []
                 });
                 
@@ -841,10 +846,8 @@
             } catch (error) {
                 console.error("فشل رفع المنشور إلى Firebase:", error);
                 alert("حدث خطأ أثناء الاتصال السحابي بقاعدة البيانات، تم حفظ نص منشورك في الحافظة.");
-                // إعادة النص المكتوب في حال حدوث خطأ تام بالشبكة منعاً لضياع تعب المستخدم
                 if (postInput) postInput.value = contentToSend;
             } finally {
-                // 4. خطوة الأمان القصوى: إعادة زر النشر للعمل فوراً وبدون أي شروط أو تأخير يعيق التجربة
                 if (postBtn) {
                     postBtn.disabled = false;
                     postBtn.innerText = "نشر المنشور";
@@ -853,37 +856,59 @@
             }
         }
 
-        window.toggleLike = function(postId) {
+        // تحديث دالة التفاعل (اللايكات) لتعمل مع Firebase
+        window.toggleLike = async function(postId) {
             const post = posts.find(p => p.id === postId);
-            if (post) {
-                if (post.likedByMe) {
-                    post.likes--;
-                    post.likedByMe = false;
-                } else {
-                    post.likes++;
-                    post.likedByMe = true;
-                }
-                savePostsToLocalStorage();
-                renderPosts();
+            if (!post) return;
+
+            post.likedByMe = !post.likedByMe;
+            post.likes = post.likedByMe ? post.likes + 1 : post.likes - 1;
+            renderPosts(); // تحديث الواجهة للمستخدم فوراً
+
+            // لا تقم بتحديث السيرفر إذا كان هذا المنشور الافتراضي (للتجربة فقط)
+            if(postId.startsWith('default-')) return;
+
+            try {
+                const postRef = doc(window.firebaseDb, "posts", postId);
+                await updateDoc(postRef, {
+                    likes: post.likes
+                });
+            } catch(e) {
+                console.error("خطأ أثناء تحديث الإعجاب في القاعدة: ", e);
             }
         }
 
-        window.submitComment = function(postId) {
+        // تحديث دالة إرسال التعليقات لتعمل مع Firebase
+        window.submitComment = async function(postId) {
             const inputElement = document.getElementById(`comment-input-${postId}`);
             const text = inputElement.value.trim();
             if (!text) return;
 
             const post = posts.find(p => p.id === postId);
-            if (post) {
-                if (!post.comments) post.comments = [];
-                post.comments.push({
-                    author: currentUser.username,
-                    content: text
-                });
-                savePostsToLocalStorage();
-                renderPosts();
-            }
+            if (!post) return;
+
+            const newComment = {
+                author: currentUser.username,
+                content: text
+            };
+
+            if (!post.comments) post.comments = [];
+            post.comments.push(newComment);
+            
             inputElement.value = "";
+            renderPosts(); // تحديث الواجهة للمستخدم فوراً
+
+            // لا تقم بتحديث السيرفر إذا كان هذا المنشور الافتراضي
+            if(postId.startsWith('default-')) return;
+
+            try {
+                const postRef = doc(window.firebaseDb, "posts", postId);
+                await updateDoc(postRef, {
+                    comments: post.comments
+                });
+            } catch(e) {
+                console.error("خطأ أثناء إرسال التعليق للقاعدة: ", e);
+            }
         }
 
         function renderPosts() {
@@ -957,7 +982,7 @@
                         ${commentsHTML}
 
                         <div class="flex gap-2 mt-3 pt-2">
-                            <input type="text" id="comment-input-${post.id}" placeholder="اكتب تعليقاً..." class="flex-1 bg-[#1d102f] text-xs text-gray-200 border border-[#e5a93b]/20 rounded-xl px-3 py-2 outline-none focus:border-[#e5a93b]">
+                            <input type="text" id="comment-input-${post.id}" placeholder="اكتب تعليقاً..." class="flex-1 bg-[#1d102f] text-xs text-gray-200 border border-[#e5a93b]/20 rounded-xl px-3 py-2 outline-none focus:border-[#e5a93b]" onkeypress="if(event.key === 'Enter') window.submitComment('${post.id}')">
                             <button onclick="window.submitComment('${post.id}')" class="bg-[#211434] hover:bg-[#e5a93b] hover:text-[#0d0614] text-[#e5a93b] text-xs font-bold px-3 py-2 rounded-xl transition-all border border-[#e5a93b]/30">إرسال</button>
                         </div>
                     </div>

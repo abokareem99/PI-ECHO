@@ -404,7 +404,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-        // استيراد الدوال اللازمة لإدارة الرفع المباشر للملفات والوسائط الكبيرة
         import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
         const firebaseConfig = {
@@ -416,10 +415,10 @@
           appId: "1:93575678453:web:95891b9d64a4abade5b8bc"
         };
 
-        if (!window.__piEchoAppInitialized) {
+        if (window.__piEchoAppInitialized === undefined) {
             window.__piEchoAppInitialized = false;
         }
-        if (!window.__piEchoSDKInitializing) {
+        if (window.__piEchoSDKInitializing === undefined) {
             window.__piEchoSDKInitializing = false;
         }
 
@@ -445,7 +444,6 @@
         let activePostIdForTip = null;
         let activeRecipientName = null;
         
-        // متغيرات حفظ كائنات الملفات الخام تمهيداً لرفعها لـ Storage
         let selectedImageFile = null;
         let selectedVideoFile = null;
         let selectedImageDataUrl = null; 
@@ -686,7 +684,6 @@
         window.toggleMicrophone = function() {
             isMicMuted = !isMicMuted;
             const micIcon = document.getElementById('mic-icon');
-            const micBtn = document.getElementById('toggle-mic-btn');
             if (isMicMuted) {
                 if (micIcon) micIcon.className = "fa-solid fa-microphone-slash text-lg";
                 document.getElementById('voice-connection-status').innerText = "🟢 متصل الآن بالصوت (المايك مكتوم)";
@@ -700,12 +697,11 @@
             document.getElementById('post-image-file').click();
         }
 
-        // حفظ كائن الصورة وتجهيز المعاينة للمستخدم
         window.previewSelectedImage = function(event) {
             window.removeVideoSelection(); 
             const file = event.target.files[0];
             if (file) {
-                selectedImageFile = file; // حفظ الكائن الفعلي للرفع لاحقاً
+                selectedImageFile = file; 
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     selectedImageDataUrl = e.target.result;
@@ -728,12 +724,11 @@
             document.getElementById('post-video-file').click();
         }
 
-        // حفظ كائن الفيديو وتجهيز المعاينة للمستخدم
         window.previewSelectedVideo = function(event) {
             window.removeImageSelection(); 
             const file = event.target.files[0];
             if (file) {
-                selectedVideoFile = file; // حفظ الكائن الفعلي للرفع لاحقاً
+                selectedVideoFile = file; 
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     selectedVideoDataUrl = e.target.result;
@@ -758,6 +753,18 @@
                 let fetchedPosts = [];
                 snapshot.forEach((doc) => {
                     const data = doc.data();
+                    
+                    // الحماية هنا: فحص كائن التوقيت المحلي لتفادي أخطاء الـ Null المؤقتة أثناء الرفع الفوري
+                    let formattedTime = "الآن";
+                    if (data.timestamp && typeof data.timestamp.seconds !== 'undefined') {
+                        formattedTime = new Date(data.timestamp.seconds * 1000).toLocaleString('ar-EG', { 
+                            hour: '2-digit', 
+                            minute: '2-digit', 
+                            day: 'numeric', 
+                            month: 'short' 
+                        });
+                    }
+
                     fetchedPosts.push({
                         id: doc.id,
                         author: data.author || "رائد مجهول",
@@ -767,7 +774,7 @@
                         content: data.content || "",
                         image: data.image || null,
                         video: data.video || null,
-                        timestamp: data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleString('ar-EG', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }) : "الآن",
+                        timestamp: formattedTime,
                         likes: data.likes || 0,
                         likedByMe: false, 
                         comments: data.comments || []
@@ -785,7 +792,6 @@
             });
         }
 
-        // الدالة المطورة بالكامل لرفع ملفات الميديا إلى الـ Storage أولاً وبشكل منفصل وآمن
         window.createNewPost = async function() {
             const postInput = document.getElementById('post-input');
             const textContent = postInput ? postInput.value.trim() : "";
@@ -808,14 +814,12 @@
             let finalVideoUrl = null;
 
             try {
-                // 1. معالجة ورفع الصورة إلى Firebase Storage إذا اختارها المستخدم
                 if (selectedImageFile) {
                     const imageRef = ref(window.firebaseStorage, `posts/images/${Date.now()}_${selectedImageFile.name}`);
                     const uploadResult = await uploadBytes(imageRef, selectedImageFile);
                     finalImageUrl = await getDownloadURL(uploadResult.ref);
                 }
 
-                // 2. معالجة ورفع الفيديو إلى Firebase Storage إذا اختاره المستخدم
                 if (selectedVideoFile) {
                     const videoRef = ref(window.firebaseStorage, `posts/videos/${Date.now()}_${selectedVideoFile.name}`);
                     const uploadResult = await uploadBytes(videoRef, selectedVideoFile);
@@ -824,15 +828,14 @@
 
                 if (postBtn) postBtn.innerText = "✍️ جاري توثيق المنشور...";
 
-                // 3. تخزين بيانات المنشور الخفيفة مع روابط التنزيل الدائمة داخل Firestore
                 await addDoc(collection(window.firebaseDb, "posts"), {
                     author: currentUser.username,
                     badge: isDemo ? "وضع تجريبي" : "رائد وباني",
                     badgeColor: isDemo ? "bg-yellow-500/10 text-yellow-400" : "bg-green-500/10 text-green-400",
                     avatar: currentUser.avatar,
                     content: textContent,
-                    image: finalImageUrl, // رابط الـ Storage السحابي
-                    video: finalVideoUrl, // رابط الـ Storage السحابي
+                    image: finalImageUrl, 
+                    video: finalVideoUrl, 
                     timestamp: serverTimestamp(),
                     likes: 0,
                     comments: []
@@ -1091,7 +1094,12 @@
             }).catch(err => console.error(err));
         }
 
-        window.addEventListener('DOMContentLoaded', initApp);
+        // معالجة تشغيل الدالة فوراً إذا كان المستند قد تم تحميله بالفعل لتجنب مشاكل تأخير الـ Modules
+        if (document.readyState === "loading") {
+            window.addEventListener('DOMContentLoaded', initApp);
+        } else {
+            initApp();
+        }
     </script>
 </body>
 </html>

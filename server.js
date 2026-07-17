@@ -1,26 +1,41 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const axios = require('axios'); // تم استبدال node-fetch بـ axios لتفادي مشاكل التوافقية على Vercel
+const axios = require('axios');
 
 const app = express();
 app.use(express.json());
 
-// تفعيل مشاركة الموارد لكي يتمكن الـ Frontend الخاص بك من الاتصال بالخادم الخلفي
+// 1. إعدادات CORS متقدمة وموثوقة لـ Vercel ومحفظة باي
 app.use(cors({
-    origin: '*' 
+    origin: '*', 
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-const PI_API_URL = 'https://api.minepi.com/v2';
-const PI_API_KEY = process.env.PI_API_KEY; // يتم تعيينه في متغيرات بيئة Vercel
+// التعامل مع طلبات OPTIONS (Preflight) لمنع تعليق المتصفح
+app.options('*', cors());
 
-// التحقق من وجود مفتاح API الخاص بباي
+const PI_API_URL = 'https://api.minepi.com/v2';
+const PI_API_KEY = process.env.PI_API_KEY;
+
 if (!PI_API_KEY) {
     console.error("❌ تحذير: لم يتم العثور على مفتاح PI_API_KEY في متغيرات البيئة!");
 }
 
-// 1. نقطة الموافقة على الدفعة (Approve Payment)
-app.post('/api/payments/approve', async (req, res) => {
+// دالة مساعدة لتبسيط وتوحيد طلبات Pi API وتجنب التكرار
+async function handlePiRequest(endpoint, payload) {
+    return await axios.post(`${PI_API_URL}/${endpoint}`, payload, {
+        headers: {
+            'Authorization': `Key ${PI_API_KEY}`,
+            'Content-Type': 'application/json'
+        },
+        timeout: 20000 // مهلة 20 ثانية لتجنب تعليق Vercel Serverless
+    });
+}
+
+// 2. نقطة الموافقة على الدفعة (Approve Payment) - تدعم المسار المباشر والفرعي لتجنب مشاكل Vercel
+app.post(['/api/payments/approve', '/payments/approve'], async (req, res) => {
     const { paymentId } = req.body;
 
     if (!paymentId) {
@@ -28,29 +43,22 @@ app.post('/api/payments/approve', async (req, res) => {
     }
 
     try {
-        // استخدام axios بدلاً من fetch لضمان التوافقية والأداء
-        const response = await axios.post(`${PI_API_URL}/payments/${paymentId}/approve`, {}, {
-            headers: {
-                'Authorization': `Key ${PI_API_KEY}`,
-                'Content-Type': 'application/json'
-            }
-        });
-
+        const response = await handlePiRequest(`payments/${paymentId}/approve`, {});
         console.log(`✅ تمت الموافقة بنجاح على الدفعة: ${paymentId}`);
         return res.status(200).json(response.data);
 
     } catch (error) {
         if (error.response) {
-            console.error("فشل الموافقة في خوادم باي:", error.response.data);
+            console.error("فشل الموافقة في خوادم باي:", JSON.stringify(error.response.data));
             return res.status(error.response.status).json(error.response.data);
         }
         console.error("خطأ داخلي أثناء الموافقة:", error.message);
-        return res.status(500).json({ error: 'حدث خطأ في الخادم الخلفي.' });
+        return res.status(500).json({ error: 'حدث خطأ في الخادم الخلفي: ' + error.message });
     }
 });
 
-// 2. نقطة إكمال الدفعة نهائياً (Complete Payment)
-app.post('/api/payments/complete', async (req, res) => {
+// 3. نقطة إكمال الدفعة نهائياً (Complete Payment)
+app.post(['/api/payments/complete', '/payments/complete'], async (req, res) => {
     const { paymentId, txid } = req.body;
 
     if (!paymentId || !txid) {
@@ -58,27 +66,21 @@ app.post('/api/payments/complete', async (req, res) => {
     }
 
     try {
-        const response = await axios.post(`${PI_API_URL}/payments/${paymentId}/complete`, { txid }, {
-            headers: {
-                'Authorization': `Key ${PI_API_KEY}`,
-                'Content-Type': 'application/json'
-            }
-        });
-
+        const response = await handlePiRequest(`payments/${paymentId}/complete`, { txid });
         console.log(`🎉 تم إكمال واستلام الدفعة بنجاح! رقم المعاملة: ${txid}`);
         return res.status(200).json(response.data);
 
     } catch (error) {
         if (error.response) {
-            console.error("فشل إكمال الدفعة في خوادم باي:", error.response.data);
+            console.error("فشل إكمال الدفعة في خوادم باي:", JSON.stringify(error.response.data));
             return res.status(error.response.status).json(error.response.data);
         }
         console.error("خطأ داخلي أثناء إكمال العملية:", error.message);
-        return res.status(500).json({ error: 'حدث خطأ في الخادم الخلفي.' });
+        return res.status(500).json({ error: 'حدث خطأ في الخادم الخلفي: ' + error.message });
     }
 });
 
-// تشغيل الخادم محلياً للتطوير فقط (وليس على Vercel)
+// تشغيل الخادم محلياً للتطوير
 if (process.env.NODE_ENV !== 'production') {
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {
@@ -86,5 +88,4 @@ if (process.env.NODE_ENV !== 'production') {
     });
 }
 
-// ⚠️ هام جداً لـ Vercel لكي يتمكن من معالجة الطلبات كـ Serverless Function
 module.exports = app;

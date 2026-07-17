@@ -199,7 +199,7 @@
                     تصميم وتطوير أبو كريم © 2026
                 </div>
             </nav>
-        </aside> <!-- هنا تم تصحيح الخطأ البرمجي وإزالة الوسوم التالفة -->
+        </aside>
 
         <main class="col-span-1 md:col-span-2 space-y-6">
             <div class="bg-[#150b22] border-2 border-[#e5a93b] shadow-[0_0_15px_rgba(229,169,59,0.15)] rounded-2xl p-4">
@@ -980,7 +980,8 @@
                     console.log("تمت الموافقة المبدئية، جاري توثيق الدفعة مع خادم Vercel:", paymentId);
                     payBtn.innerText = "⏳ جاري التوثيق والموافقة من الخادم...";
 
-                    fetch(`${VERCEL_BACKEND_URL}/approve`, {
+                    // تم التحديث هنا لإضافة /payments/ ليتوافق تماماً مع الـ Backend
+                    fetch(`${VERCEL_BACKEND_URL}/payments/approve`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ paymentId: paymentId })
@@ -990,12 +991,13 @@
                         return response.json();
                     })
                     .then(data => {
-                        if (data.success) {
+                        // خادم Vercel يقوم بإرجاع بيانات الموافقة مباشرة عند استخدام axios
+                        if (data && data.approved) {
                             console.log("وافق الخادم بنجاح! جاري استدعاء الـ SDK للتوقيع...");
                             payBtn.innerText = "✍️ يرجى توقيع المعاملة في نافذة Pi...";
                             Pi.approvePayment(paymentId);
                         } else {
-                            throw new Error(data.message || "فشلت موافقة الخادم.");
+                            throw new Error("فشلت موافقة الخادم على الدفعة.");
                         }
                     })
                     .catch(err => {
@@ -1008,7 +1010,8 @@
                     console.log("وقع الرواد المعاملة بنجاح، جاري ترحيل الـ TXID للإتمام والربط على البلوكشين:", txid);
                     payBtn.innerText = "🔗 جاري إرسال المعاملة للبلوكشين...";
 
-                    fetch(`${VERCEL_BACKEND_URL}/complete`, {
+                    // تم التحديث هنا لإضافة /payments/ ليتوافق تماماً مع الـ Backend
+                    fetch(`${VERCEL_BACKEND_URL}/payments/complete`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ paymentId: paymentId, txid: txid })
@@ -1018,12 +1021,12 @@
                         return response.json();
                     })
                     .then(data => {
-                        if (data.success) {
+                        if (data && data.completed) {
                             Pi.completePayment(paymentId);
                             alert(`🎉 ألف مبروك! تم إرسال الدعم بنجاح وإكمال الدورة البرمجية للدفعة.\nرقم المعاملة (TXID):\n${txid}`);
                             closeSupportModal();
                         } else {
-                            throw new Error(data.message || "فشل إغلاق المعاملة بالخادم.");
+                            throw new Error("فشل إغلاق المعاملة بالخادم.");
                         }
                     })
                     .catch(err => {
@@ -1055,14 +1058,15 @@
 
         // إرسال تسوية المعاملات المعلقة للخلفية
         function completeIncompletePayment(paymentId, txid) {
-            fetch(`${VERCEL_BACKEND_URL}/complete`, {
+            // تم التحديث هنا لإضافة /payments/ ليتوافق تماماً مع الـ Backend
+            fetch(`${VERCEL_BACKEND_URL}/payments/complete`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ paymentId: paymentId, txid: txid })
             })
             .then(res => res.json())
             .then(data => {
-                if (data.success) {
+                if (data && data.completed) {
                     console.log("تمت تسوية الدفعة القديمة المعلقة بنجاح!");
                 }
             })

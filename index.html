@@ -399,15 +399,14 @@
         </div>
     </div>
 
-    <!-- كود الجافا سكريبت الموحد والآمن باستخدام نظام الـ Module لـ Firebase و Pi SDK -->
+    <!-- كود الجافا سكريبت المطور بالكامل لربط الوسائط بـ Firebase Storage -->
     <script type="module">
-        // 1. استيراد دوال Firebase بالإصدار الصحيح
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-        import { getStorage } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+        // استيراد الدوال اللازمة لإدارة الرفع المباشر للملفات والوسائط الكبيرة
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
-        // بيانات اتصال Firebase الخاصة بمشروعك
         const firebaseConfig = {
           apiKey: "AIzaSyCyDmlRaqGY2C-PfKAKxL8GoYgg1qKiqDY",
           authDomain: "echopi-1a87c.firebaseapp.com",
@@ -417,7 +416,6 @@
           appId: "1:93575678453:web:95891b9d64a4abade5b8bc"
         };
 
-        // حماية ضد التكرار البرمجي في البيئات السحابية (Next.js/React re-mounts)
         if (!window.__piEchoAppInitialized) {
             window.__piEchoAppInitialized = false;
         }
@@ -425,18 +423,15 @@
             window.__piEchoSDKInitializing = false;
         }
 
-        // تهيئة خدمات الـ Firebase
         const firebaseApp = initializeApp(firebaseConfig);
         const auth = getAuth(firebaseApp);
         const db = getFirestore(firebaseApp);
         const storage = getStorage(firebaseApp);
 
-        // تصدير المتغيرات العامة للنافذة لتظل الروابط في عناصر الـ HTML تعمل بدون مشاكل
         window.firebaseAuth = auth;
         window.firebaseDb = db;
         window.firebaseStorage = storage;
 
-        // 2. إعداد المتغيرات والمنطق البرمجي الخاص بـ Pi Echo
         const VERCEL_BACKEND_URL = "https://pi-echo.vercel.app/api";
 
         let currentUser = {
@@ -449,8 +444,13 @@
         let posts = [];
         let activePostIdForTip = null;
         let activeRecipientName = null;
-        let selectedVideoDataUrl = null; 
+        
+        // متغيرات حفظ كائنات الملفات الخام تمهيداً لرفعها لـ Storage
+        let selectedImageFile = null;
+        let selectedVideoFile = null;
         let selectedImageDataUrl = null; 
+        let selectedVideoDataUrl = null; 
+        
         let piInitAttempts = 0;
         let isBypassActive = false;
         let lastPiError = "يرجى التأكد من فتح التطبيق من داخل متصفح Pi Browser أو تفعيل الـ Sandbox.";
@@ -473,20 +473,6 @@
                 comments: [
                     { author: "أبو كريم", content: "بالتأكيد يا رائد، العمل مستمر على قدم وساق!" }
                 ]
-            },
-            {
-                id: "default-2",
-                author: "سارة محمد",
-                badge: "مطور باي",
-                badgeColor: "bg-purple-900/30 text-purple-300",
-                avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=pioneer2",
-                content: "نعمل حالياً على واجهة مستخدم مخصصة لمنصة الخدمات المصغرة على متصفح Pi Browser. التصاميم تبدو واعدة جداً وتأثير الإطارات الذهبية مدهش!",
-                image: null,
-                video: null,
-                timestamp: "منذ 5 ساعات",
-                likes: 42,
-                likedByMe: false,
-                comments: []
             }
         ];
 
@@ -498,7 +484,6 @@
             try { localStorage.setItem(key, value); } catch (e) {}
         }
 
-        // دالة التهيئة الرئيسية بعد تحميل واجهات النظام المتزامنة
         function initApp() {
             if (window.__piEchoAppInitialized) return;
             window.__piEchoAppInitialized = true;
@@ -508,10 +493,7 @@
                 try { currentUser = JSON.parse(savedUser); } catch(e) {}
             }
             updateUserProfileDOM();
-            
-            // بدء مراقبة قاعدة بيانات Firebase Firestore حياً
             listenToPostsFromFirebase();
-            
             startPiSDKInitialization();
         }
 
@@ -630,11 +612,8 @@
         }
 
         function onIncompletePaymentFound(payment) {
-            console.log("تم العثور على دفعة معلقة غير مكتملة:", payment);
             if (payment && payment.transaction) {
                 completeIncompletePayment(payment.identifier, payment.transaction.txid);
-            } else if (payment) {
-                console.warn("الدفعة المعلقة تفتقد إلى معرف المعاملة (لم يتم توقيعها بعد).");
             }
         }
 
@@ -681,19 +660,13 @@
             if (icon) {
                 icon.className = "fa-solid fa-flask text-yellow-400";
             }
-            
-            alert("تم تفعيل الوضع التجريبي بنجاح! يمكنك الآن تجربة جميع مزايا المنصة ونشر الفيديوهات والتعليق بكامل حريتك.");
+            alert("تم تفعيل الوضع التجريبي بنجاح!");
         }
 
         window.openVoiceChatModal = function() {
             document.getElementById('voice-chat-modal').classList.remove('hidden');
             document.getElementById('voice-chat-modal').classList.add('flex');
-            
             isConnectingVoice = true;
-            document.getElementById('voice-connection-status').innerText = "🟡 جاري الاتصال بالروم...";
-            document.getElementById('voice-connection-status').className = "text-xs text-yellow-400 font-semibold block mt-1 animate-pulse";
-            document.getElementById('voice-bars-container').classList.add('hidden');
-
             setTimeout(() => {
                 if(isConnectingVoice) {
                     document.getElementById('voice-connection-status').innerText = "🟢 متصل الآن بالصوت";
@@ -707,26 +680,18 @@
             isConnectingVoice = false;
             document.getElementById('voice-chat-modal').classList.add('hidden');
             document.getElementById('voice-chat-modal').classList.remove('flex');
-            
             isMicMuted = true;
-            const micIcon = document.getElementById('mic-icon');
-            const micBtn = document.getElementById('toggle-mic-btn');
-            if (micIcon) micIcon.className = "fa-solid fa-microphone-slash text-lg";
-            if (micBtn) micBtn.className = "bg-[#211434] border border-[#e5a93b]/40 hover:border-[#e5a93b] text-[#e5a93b] w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-md";
         }
 
         window.toggleMicrophone = function() {
             isMicMuted = !isMicMuted;
             const micIcon = document.getElementById('mic-icon');
             const micBtn = document.getElementById('toggle-mic-btn');
-
             if (isMicMuted) {
                 if (micIcon) micIcon.className = "fa-solid fa-microphone-slash text-lg";
-                if (micBtn) micBtn.className = "bg-[#211434] border border-[#e5a93b]/40 text-[#e5a93b] w-12 h-12 rounded-full flex items-center justify-center transition-all";
                 document.getElementById('voice-connection-status').innerText = "🟢 متصل الآن بالصوت (المايك مكتوم)";
             } else {
                 if (micIcon) micIcon.className = "fa-solid fa-microphone text-lg";
-                if (micBtn) micBtn.className = "bg-[#e5a93b] text-[#0d0614] w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-lg shadow-[#e5a93b]/30 animate-pulse";
                 document.getElementById('voice-connection-status').innerText = "🟢 التحدث نشط الآن... المايك مفتوح";
             }
         }
@@ -735,10 +700,12 @@
             document.getElementById('post-image-file').click();
         }
 
+        // حفظ كائن الصورة وتجهيز المعاينة للمستخدم
         window.previewSelectedImage = function(event) {
             window.removeVideoSelection(); 
             const file = event.target.files[0];
             if (file) {
+                selectedImageFile = file; // حفظ الكائن الفعلي للرفع لاحقاً
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     selectedImageDataUrl = e.target.result;
@@ -750,6 +717,7 @@
         }
 
         window.removeImageSelection = function() {
+            selectedImageFile = null;
             selectedImageDataUrl = null;
             document.getElementById('post-image-file').value = "";
             document.getElementById('image-preview').src = "";
@@ -760,10 +728,12 @@
             document.getElementById('post-video-file').click();
         }
 
+        // حفظ كائن الفيديو وتجهيز المعاينة للمستخدم
         window.previewSelectedVideo = function(event) {
             window.removeImageSelection(); 
             const file = event.target.files[0];
             if (file) {
+                selectedVideoFile = file; // حفظ الكائن الفعلي للرفع لاحقاً
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     selectedVideoDataUrl = e.target.result;
@@ -775,16 +745,15 @@
         }
 
         window.removeVideoSelection = function() {
+            selectedVideoFile = null;
             selectedVideoDataUrl = null;
             document.getElementById('post-video-file').value = "";
             document.getElementById('video-preview').src = "";
             document.getElementById('video-preview-container').classList.add('hidden');
         }
 
-        // دالة جلب ومراقبة المنشورات من Firebase Firestore بشكل حي وتلقائي
         function listenToPostsFromFirebase() {
             const q = query(collection(window.firebaseDb, "posts"), orderBy("timestamp", "desc"));
-            
             onSnapshot(q, (snapshot) => {
                 let fetchedPosts = [];
                 snapshot.forEach((doc) => {
@@ -805,32 +774,24 @@
                     });
                 });
                 
-                // الحفاظ على حالة الإعجاب المحلية للمستخدم
                 fetchedPosts.forEach(newPost => {
                     const existingPost = posts.find(p => p.id === newPost.id);
-                    if(existingPost) {
-                        newPost.likedByMe = existingPost.likedByMe;
-                    }
+                    if(existingPost) newPost.likedByMe = existingPost.likedByMe;
                 });
 
                 posts = fetchedPosts;
-
-                // دمج المنشورات الافتراضية مع السحابية في حال خلو قاعدة البيانات مؤقتاً
-                if (posts.length === 0) {
-                    posts = defaultPosts;
-                }
-                
+                if (posts.length === 0) posts = defaultPosts;
                 renderPosts();
             });
         }
 
-        // دالة إنشاء المنشورات السحابية
+        // الدالة المطورة بالكامل لرفع ملفات الميديا إلى الـ Storage أولاً وبشكل منفصل وآمن
         window.createNewPost = async function() {
             const postInput = document.getElementById('post-input');
             const textContent = postInput ? postInput.value.trim() : "";
             const postBtn = document.getElementById('main-post-btn');
             
-            if (!textContent && !selectedVideoDataUrl && !selectedImageDataUrl) {
+            if (!textContent && !selectedVideoFile && !selectedImageFile) {
                 alert("من فضلك، اكتب نصاً أو ارفع صورة/فيديو أولاً لنشر المحتوى.");
                 return;
             }
@@ -839,37 +800,52 @@
             
             if (postBtn) {
                 postBtn.disabled = true;
-                postBtn.innerText = "جاري النشر...";
+                postBtn.innerText = "⏳ جاري رفع الوسائط...";
                 postBtn.className = "bg-gray-600 text-gray-400 font-bold px-5 py-1.5 rounded-lg text-sm cursor-not-allowed shadow-none";
             }
 
-            const contentToSend = textContent;
-            const imageToSend = selectedImageDataUrl || null;
-            const videoToSend = selectedVideoDataUrl || null;
-
-            if (postInput) postInput.value = "";
-            window.removeVideoSelection();
-            window.removeImageSelection();
+            let finalImageUrl = null;
+            let finalVideoUrl = null;
 
             try {
+                // 1. معالجة ورفع الصورة إلى Firebase Storage إذا اختارها المستخدم
+                if (selectedImageFile) {
+                    const imageRef = ref(window.firebaseStorage, `posts/images/${Date.now()}_${selectedImageFile.name}`);
+                    const uploadResult = await uploadBytes(imageRef, selectedImageFile);
+                    finalImageUrl = await getDownloadURL(uploadResult.ref);
+                }
+
+                // 2. معالجة ورفع الفيديو إلى Firebase Storage إذا اختاره المستخدم
+                if (selectedVideoFile) {
+                    const videoRef = ref(window.firebaseStorage, `posts/videos/${Date.now()}_${selectedVideoFile.name}`);
+                    const uploadResult = await uploadBytes(videoRef, selectedVideoFile);
+                    finalVideoUrl = await getDownloadURL(uploadResult.ref);
+                }
+
+                if (postBtn) postBtn.innerText = "✍️ جاري توثيق المنشور...";
+
+                // 3. تخزين بيانات المنشور الخفيفة مع روابط التنزيل الدائمة داخل Firestore
                 await addDoc(collection(window.firebaseDb, "posts"), {
                     author: currentUser.username,
                     badge: isDemo ? "وضع تجريبي" : "رائد وباني",
                     badgeColor: isDemo ? "bg-yellow-500/10 text-yellow-400" : "bg-green-500/10 text-green-400",
                     avatar: currentUser.avatar,
-                    content: contentToSend,
-                    image: imageToSend,
-                    video: videoToSend,
+                    content: textContent,
+                    image: finalImageUrl, // رابط الـ Storage السحابي
+                    video: finalVideoUrl, // رابط الـ Storage السحابي
                     timestamp: serverTimestamp(),
                     likes: 0,
                     comments: []
                 });
                 
-                console.log("تم النشر السحابي بنجاح وتحديث قاعدة البيانات!");
+                if (postInput) postInput.value = "";
+                window.removeVideoSelection();
+                window.removeImageSelection();
+                console.log("تم الرفع والحفظ بنجاح دائم!");
+
             } catch (error) {
-                console.error("فشل رفع المنشور إلى Firebase:", error);
-                alert("حدث خطأ أثناء الاتصال السحابي بقاعدة البيانات، تم حفظ نص منشورك في الحافظة.");
-                if (postInput) postInput.value = contentToSend;
+                console.error("فشل رفع الملفات أو المستند:", error);
+                alert("تعذر نشر المنشور؛ يرجى التحقق من إعدادات قواعد القراءة والكتابة (Security Rules) في Firebase Storage.");
             } finally {
                 if (postBtn) {
                     postBtn.disabled = false;
@@ -879,7 +855,6 @@
             }
         }
 
-        // تحديث دالة التفاعل (اللايكات) لتعمل مع Firebase
         window.toggleLike = async function(postId) {
             const post = posts.find(p => p.id === postId);
             if (!post) return;
@@ -889,18 +864,11 @@
             renderPosts(); 
 
             if(postId.startsWith('default-')) return;
-
             try {
-                const postRef = doc(window.firebaseDb, "posts", postId);
-                await updateDoc(postRef, {
-                    likes: post.likes
-                });
-            } catch(e) {
-                console.error("خطأ أثناء تحديث الإعجاب في القاعدة: ", e);
-            }
+                await updateDoc(doc(window.firebaseDb, "posts", postId), { likes: post.likes });
+            } catch(e) { console.error(e); }
         }
 
-        // تحديث دالة إرسال التعليقات لتعمل مع Firebase
         window.submitComment = async function(postId) {
             const inputElement = document.getElementById(`comment-input-${postId}`);
             if (!inputElement) return;
@@ -910,27 +878,16 @@
             const post = posts.find(p => p.id === postId);
             if (!post) return;
 
-            const newComment = {
-                author: currentUser.username,
-                content: text
-            };
-
             if (!post.comments) post.comments = [];
-            post.comments.push(newComment);
+            post.comments.push({ author: currentUser.username, content: text });
             
             inputElement.value = "";
             renderPosts(); 
 
             if(postId.startsWith('default-')) return;
-
             try {
-                const postRef = doc(window.firebaseDb, "posts", postId);
-                await updateDoc(postRef, {
-                    comments: post.comments
-                });
-            } catch(e) {
-                console.error("خطأ أثناء إرسال التعليق للقاعدة: ", e);
-            }
+                await updateDoc(doc(window.firebaseDb, "posts", postId), { comments: post.comments });
+            } catch(e) { console.error(e); }
         }
 
         function renderPosts() {
@@ -986,11 +943,8 @@
                                 <span>أرسل Pi</span>
                             </button>
                         </div>
-                        
                         <p class="text-sm text-gray-300 leading-relaxed whitespace-pre-line">${post.content}</p>
-                        
                         ${mediaHTML}
-                        
                         <div class="flex items-center gap-6 pt-3 border-t border-[#e5a93b]/20 text-xs text-gray-400">
                             <button onclick="window.toggleLike('${post.id}')" class="flex items-center gap-1.5 hover:text-red-500 transition-colors ${post.likedByMe ? 'text-red-500' : ''}">
                                 <i class="${post.likedByMe ? 'fa-solid' : 'fa-regular'} fa-heart text-sm"></i>
@@ -1001,9 +955,7 @@
                                 <span>${post.comments ? post.comments.length : 0}</span>
                             </div>
                         </div>
-
                         ${commentsHTML}
-
                         <div class="flex gap-2 mt-3 pt-2">
                             <input type="text" id="comment-input-${post.id}" placeholder="اكتب تعليقاً..." class="flex-1 bg-[#1d102f] text-xs text-gray-200 border border-[#e5a93b]/20 rounded-xl px-3 py-2 outline-none focus:border-[#e5a93b]" onkeypress="if(event.key === 'Enter') window.submitComment('${post.id}')">
                             <button onclick="window.submitComment('${post.id}')" class="bg-[#211434] hover:bg-[#e5a93b] hover:text-[#0d0614] text-[#e5a93b] text-xs font-bold px-3 py-2 rounded-xl transition-all border border-[#e5a93b]/30">إرسال</button>
@@ -1031,9 +983,7 @@
             const file = event.target.files[0];
             if (file) {
                 const reader = new FileReader();
-                reader.onload = function(e) {
-                    document.getElementById('modal-avatar-preview').src = e.target.result;
-                };
+                reader.onload = function(e) { document.getElementById('modal-avatar-preview').src = e.target.result; };
                 reader.readAsDataURL(file);
             }
         }
@@ -1041,18 +991,13 @@
         window.saveUserProfile = function() {
             const newName = document.getElementById('edit-username').value.trim();
             const newBio = document.getElementById('edit-bio').value.trim();
-            const newAvatar = document.getElementById('modal-avatar-preview').src;
-            
             if (newName) {
                 currentUser.username = newName;
                 currentUser.bio = newBio;
-                currentUser.avatar = newAvatar;
-                
+                currentUser.avatar = document.getElementById('modal-avatar-preview').src;
                 updateUserProfileDOM();
                 safeSetItem('piecho_user_v2', JSON.stringify(currentUser));
                 window.closeEditProfileModal();
-            } else {
-                alert("يرجى إدخال اسم مستخدم صالح.");
             }
         }
 
@@ -1066,9 +1011,7 @@
             document.getElementById('modal-desc').innerText = `أنت على وشك إرسال دعم مالي حقيقي إلى "${recipientName}" لدعم المحتوى الرقمي الخاص به على شبكة باي إيكو.`;
             document.getElementById('payment-modal').classList.remove('hidden');
             document.getElementById('payment-modal').classList.add('flex');
-            
-            const payBtn = document.querySelector("#payment-modal button[onclick='window.executePiPayment()']");
-            if(payBtn) resetPayButton(payBtn);
+            resetPayButton(document.querySelector("#payment-modal button[onclick='window.executePiPayment()']"));
         }
 
         window.closeSupportModal = function() {
@@ -1080,13 +1023,9 @@
             const amount = parseFloat(document.getElementById('tip-amount').value);
             const payBtn = document.querySelector("#payment-modal button[onclick='window.executePiPayment()']");
 
-            if (isNaN(amount) || amount <= 0) {
-                alert("الرجاء إدخال قيمة دعم صالحة بـ Pi.");
-                return;
-            }
-
+            if (isNaN(amount) || amount <= 0) return;
             if (isBypassActive) {
-                alert(`محاكاة عملية دفع ناجحة بـ (${amount} Pi) إلى ${activeRecipientName}!\n\n(بما أنك تستخدم الوضع التجريبي المحلي، لم يتم خصم رصيد حقيقي من محفظتك)`);
+                alert(`محاكاة عملية دفع ناجحة بـ (${amount} Pi) إلى ${activeRecipientName}!`);
                 window.closeSupportModal();
                 return;
             }
@@ -1103,85 +1042,42 @@
 
             const callbacks = {
                 onReadyForServerApproval: function(paymentId) {
-                    console.log("تمت الموافقة المبدئية، جاري توثيق الدفعة مع خادم Vercel:", paymentId);
-                    payBtn.innerText = "⏳ جاري التوثيق والموافقة من الخادم...";
-
                     fetch(`${VERCEL_BACKEND_URL}/payments/approve`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ paymentId: paymentId })
                     })
-                    .then(response => {
-                        if (!response.ok) throw new Error("استجابة الخادم غير صالحة " + response.status);
-                        return response.json();
-                    })
+                    .then(res => res.json())
                     .then(data => {
-                        if (data && data.approved) {
-                            console.log("وافق الخادم بنجاح! جاري استدعاء الـ SDK للتوقيع...");
-                            payBtn.innerText = "✍️ يرجى توقيع المعاملة في نافذة Pi...";
-                            Pi.approvePayment(paymentId);
-                        } else {
-                            throw new Error("فشلت موافقة الخادم على الدفعة.");
-                        }
+                        if (data && data.approved) Pi.approvePayment(paymentId);
                     })
-                    .catch(err => {
-                        console.error("خطأ أثناء الاتصال بالخادم للموافقة:", err);
-                        payBtn.innerText = "❌ فشل المصادقة على الدفعة من السيرفر";
-                        setTimeout(() => resetPayButton(payBtn), 3000);
-                    });
+                    .catch(() => resetPayButton(payBtn));
                 },
                 onReadyForServerCompletion: function(paymentId, txid) {
-                    console.log("وقع الرواد المعاملة بنجاح، جاري ترحيل الـ TXID للإتمام والربط على البلوكشين:", txid);
-                    payBtn.innerText = "🔗 جاري إرسال المعاملة للبلوكشين...";
-
                     fetch(`${VERCEL_BACKEND_URL}/payments/complete`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ paymentId: paymentId, txid: txid })
                     })
-                    .then(response => {
-                        if (!response.ok) throw new Error("فشل الخادم الخلفي في استلام التأكيد " + response.status);
-                        return response.json();
-                    })
+                    .then(res => res.json())
                     .then(data => {
                         if (data && (data.completed || data.success)) {
                             Pi.completePayment(paymentId);
-                            
                             payBtn.className = "w-full bg-green-600 text-white font-bold py-3 rounded-xl";
                             payBtn.innerText = "🎉 تم الدفع بنجاح!";
-                            
-                            setTimeout(() => {
-                                window.closeSupportModal();
-                                resetPayButton(payBtn);
-                            }, 2000);
-                        } else {
-                            throw new Error("فشلت إغلاق المعاملة بالخادم.");
+                            setTimeout(() => { window.closeSupportModal(); resetPayButton(payBtn); }, 2000);
                         }
                     })
-                    .catch(err => {
-                        console.error("خطأ أثناء الاتصال بالخادم للإتمام:", err);
-                        payBtn.innerText = "⚠️ لم يكتمل الرد، جاري التحقق التلقائي...";
-                        setTimeout(() => {
-                            window.closeSupportModal();
-                            resetPayButton(payBtn);
-                        }, 3000);
-                    });
+                    .catch(() => resetPayButton(payBtn));
                 },
-                onCancel: function(paymentId) {
-                    console.log("ألغى المستخدم المعاملة:", paymentId);
-                    resetPayButton(payBtn);
-                },
-                onError: function(error, payment) {
-                    console.error("حدث خطأ غير متوقع أثناء الدفع:", error);
-                    payBtn.innerText = "❌ فشلت عملية الدفع";
-                    setTimeout(() => resetPayButton(payBtn), 3000);
-                }
+                onCancel: function() { resetPayButton(payBtn); },
+                onError: function() { resetPayButton(payBtn); }
             };
-
             Pi.createPayment(paymentData, callbacks);
         }
 
         function resetPayButton(button) {
+            if(!button) return;
             button.disabled = false;
             button.innerText = "تأكيد وإرسال عبر Pi SDK";
             button.className = "w-full bg-[#e5a93b] hover:bg-yellow-500 text-[#0d0614] font-bold py-3 rounded-xl transition-all shadow-md shadow-[#e5a93b]/10";
@@ -1192,17 +1088,9 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ paymentId: paymentId, txid: txid })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data && (data.completed || data.success)) {
-                    console.log("تمت تسوية الدفعة القديمة المعلقة بنجاح!");
-                }
-            })
-            .catch(err => console.error("فشلت تسوية الدفعة المعلقة القديمة:", err));
+            }).catch(err => console.error(err));
         }
 
-        // تشغيل التطبيق بأمان عند جاهزية واجهة المستخدم الكاملة
         window.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>

@@ -401,11 +401,11 @@
 
     <!-- كود الجافا سكريبت الموحد والآمن باستخدام نظام الـ Module لـ Firebase و Pi SDK -->
     <script type="module">
-        // 1. استيراد دوال Firebase بالإصدار الصحيح (تم إضافة دوال الرفع السحابي Storage)
+        // 1. استيراد دوال Firebase بالإصدار الصحيح
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+        import { getStorage } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
         // بيانات اتصال Firebase الخاصة بمشروعك
         const firebaseConfig = {
@@ -416,6 +416,14 @@
           messagingSenderId: "93575678453",
           appId: "1:93575678453:web:95891b9d64a4abade5b8bc"
         };
+
+        // حماية ضد التكرار البرمجي في البيئات السحابية (Next.js/React re-mounts)
+        if (!window.__piEchoAppInitialized) {
+            window.__piEchoAppInitialized = false;
+        }
+        if (!window.__piEchoSDKInitializing) {
+            window.__piEchoSDKInitializing = false;
+        }
 
         // تهيئة خدمات الـ Firebase
         const firebaseApp = initializeApp(firebaseConfig);
@@ -490,22 +498,35 @@
             try { localStorage.setItem(key, value); } catch (e) {}
         }
 
+        // دالة التهيئة الرئيسية بعد تحميل واجهات النظام المتزامنة
         function initApp() {
+            if (window.__piEchoAppInitialized) return;
+            window.__piEchoAppInitialized = true;
+
             const savedUser = safeGetItem('piecho_user_v2');
             if (savedUser) {
                 try { currentUser = JSON.parse(savedUser); } catch(e) {}
             }
             updateUserProfileDOM();
+            
+            // بدء مراقبة قاعدة بيانات Firebase Firestore حياً
             listenToPostsFromFirebase();
+            
             startPiSDKInitialization();
         }
 
         function updateUserProfileDOM() {
-            document.getElementById('navbar-user-avatar').src = currentUser.avatar;
-            document.getElementById('feed-post-avatar').src = currentUser.avatar;
-            document.getElementById('sidebar-user-avatar').src = currentUser.avatar;
-            document.getElementById('sidebar-user-name').innerText = currentUser.username;
-            document.getElementById('sidebar-user-bio').innerText = currentUser.bio || "لا يوجد بايو محدد.";
+            const navAvatar = document.getElementById('navbar-user-avatar');
+            const feedAvatar = document.getElementById('feed-post-avatar');
+            const sideAvatar = document.getElementById('sidebar-user-avatar');
+            const sideName = document.getElementById('sidebar-user-name');
+            const sideBio = document.getElementById('sidebar-user-bio');
+
+            if (navAvatar) navAvatar.src = currentUser.avatar;
+            if (feedAvatar) feedAvatar.src = currentUser.avatar;
+            if (sideAvatar) sideAvatar.src = currentUser.avatar;
+            if (sideName) sideName.innerText = currentUser.username;
+            if (sideBio) sideBio.innerText = currentUser.bio || "لا يوجد بايو محدد.";
             
             const mobAvatar = document.getElementById('mobile-sidebar-avatar');
             const mobName = document.getElementById('mobile-sidebar-username');
@@ -518,6 +539,8 @@
         window.toggleMobileSidebar = function() {
             const sidebar = document.getElementById('mobile-sidebar');
             const overlay = document.getElementById('mobile-sidebar-overlay');
+            if (!sidebar || !overlay) return;
+
             if (sidebar.classList.contains('translate-x-full')) {
                 sidebar.classList.remove('translate-x-full');
                 sidebar.classList.add('translate-x-0');
@@ -544,6 +567,9 @@
         }
 
         function startPiSDKInitialization() {
+            if (window.__piEchoSDKInitializing) return;
+            window.__piEchoSDKInitializing = true;
+
             const urlParams = new URLSearchParams(window.location.search);
             let useSandbox = false;
 
@@ -575,6 +601,7 @@
             } else {
                 piInitAttempts++;
                 if (piInitAttempts < 10) {
+                    window.__piEchoSDKInitializing = false;
                     setTimeout(startPiSDKInitialization, 500);
                 } else {
                     lastPiError = "لم يتم العثور على مكتبة Pi SDK. تأكد من فتح الرابط من داخل متصفح Pi.";
@@ -590,1171 +617,6 @@
             .then(function(auth) {
                 currentUser.username = auth.user.username;
                 currentUser.avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${auth.user.username}`;
-                currentUser.isPiAuthenticated = true;
-                
-                updateUserProfileDOM();
-                updateSDKStatus(`🟢 متصل: ${auth.user.username}`, "text-green-400");
-                safeSetItem('piecho_user_v2', JSON.stringify(currentUser));
-            })
-            .catch(function(error) {
-                console.error("فشل تسجيل الدخول لـ Pi:", error);
-                handleAuthError(error, currentSandboxState);
-            });
-        }
-
-        function handleAuthError(error, currentSandboxState) {
-            if (error && error.message && error.message.includes("Sandbox")) {
-                lastPiError = "يجب تفعيل خيار الـ Sandbox لأن التطبيق قيد التطوير ولم يُنشر رسمياً بعد.";
-            } else if (error && error.message) {
-                 lastPiError = `خطأ في المصادقة: ${error.message}`;
-            } else {
-                 lastPiError = "تعذر الاتصال بمحفظة Pi. قد تكون المشكلة من إعدادات الـ CORS في متصفحك أو سيرفر المطورين.";
-            }
-            updateSDKStatus("⚠️ خطأ في الاتصال (اضغط للتفاصيل أو التخطي)", "text-red-400 hover:text-red-300");
-        }
-
-        function onIncompletePaymentFound(payment) {
-            console.warn("عُثر على معاملة معلقة:", payment);
-            alert(`تنبيه: توجد معاملة معلقة برقم ${payment.identifier} بقيمة ${payment.amount} Pi. يُرجى التواصل مع الدعم إذا تم خصم الرصيد ولم تصل الخدمة.`);
-            completeServerSidePayment(payment.identifier, payment.transaction.txid);
-        }
-
-        window.handleStatusClick = function() {
-            if (currentUser.isPiAuthenticated && !isBypassActive) {
-                alert(`أنت متصل بنجاح في Pi SDK كـ ${currentUser.username}`);
-                return;
-            }
-
-            if (confirm(`${lastPiError}\n\nهل تريد تشغيل "وضع المطور التجريبي" لتخطي التسجيل وتجربة التطبيق محلياً دون الحاجة لمتصفح Pi؟\nملاحظة: عمليات الدفع في هذا الوضع ستكون وهمية للمحاكاة فقط.`)) {
-                isBypassActive = true;
-                currentUser.username = "مطور تجريبي";
-                currentUser.avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=Developer`;
-                currentUser.bio = "وضع المحاكاة نشط. الصلاحيات كاملة للبرمجة وتجربة الواجهات.";
-                updateUserProfileDOM();
-                updateSDKStatus("🔧 وضع تجريبي نشط", "text-blue-400");
-                alert("تم تفعيل وضع المطور. استمتع بتجربة باي إيكو!");
-            }
-        }
-
-        function renderPosts() {
-            const container = document.getElementById('feed-container');
-            if (!container) return;
-            container.innerHTML = '';
-            
-            if (posts.length === 0) {
-                container.innerHTML = `
-                    <div class="text-center text-gray-500 py-10 bg-[#150b22] border-2 border-[#e5a93b] rounded-2xl border-dashed">
-                        <i class="fa-solid fa-ghost text-4xl mb-3 text-[#e5a93b]/50"></i>
-                        <p>لا توجد منشورات حتى الآن، كن أول من ينشر!</p>
-                    </div>`;
-                return;
-            }
-
-            posts.forEach(post => {
-                const isMyPost = post.author === currentUser.username;
-                let mediaHtml = '';
-                
-                if (post.image) {
-                    mediaHtml = `
-                        <div class="mt-4 rounded-xl overflow-hidden border border-[#e5a93b]/30">
-                            <img src="${post.image}" class="w-full object-cover max-h-96" alt="Post Image">
-                        </div>`;
-                }
-                
-                if (post.video) {
-                    mediaHtml += `
-                        <div class="mt-4 rounded-xl overflow-hidden border border-[#e5a93b]/30">
-                            <video src="${post.video}" class="w-full max-h-96" controls preload="metadata"></video>
-                        </div>`;
-                }
-
-                const commentsHtml = renderComments(post.id, post.comments);
-                let timeDisplay = post.timestamp;
-                if (typeof post.timestamp === 'object' && post.timestamp !== null && post.timestamp.toDate) {
-                    const date = post.timestamp.toDate();
-                    timeDisplay = `${date.toLocaleDateString('ar-EG')} - ${date.toLocaleTimeString('ar-EG', {hour: '2-digit', minute:'2-digit'})}`;
-                }
-
-                container.innerHTML += `
-                    <div class="bg-[#150b22] border border-[#e5a93b]/40 hover:border-[#e5a93b] transition-all shadow-lg rounded-2xl p-5 mb-6">
-                        <div class="flex justify-between items-start">
-                            <div class="flex gap-3 items-center">
-                                <img src="${post.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default'}" alt="Avatar" class="w-12 h-12 rounded-full border border-[#e5a93b]/50 object-cover">
-                                <div>
-                                    <div class="flex items-center gap-2">
-                                        <h4 class="font-bold text-gray-100 text-sm md:text-base">${post.author}</h4>
-                                        <span class="${post.badgeColor} text-[10px] md:text-xs px-2 py-0.5 rounded-full font-semibold border border-current">
-                                            ${post.badge}
-                                        </span>
-                                    </div>
-                                    <span class="text-xs text-gray-500">${timeDisplay || 'الآن'}</span>
-                                </div>
-                            </div>
-                            <button class="text-gray-500 hover:text-[#e5a93b] transition-colors"><i class="fa-solid fa-ellipsis"></i></button>
-                        </div>
-                        
-                        <div class="mt-4 text-sm text-gray-300 leading-relaxed break-words whitespace-pre-wrap">
-                            ${post.content || ''}
-                        </div>
-                        
-                        ${mediaHtml}
-
-                        <div class="mt-5 pt-4 border-t border-[#e5a93b]/20 flex justify-between items-center text-gray-400 text-xs md:text-sm">
-                            <button onclick="window.toggleLike('${post.id}')" class="flex items-center gap-2 ${post.likedByMe ? 'text-red-500 font-bold' : 'hover:text-red-400'} transition-colors">
-                                <i class="${post.likedByMe ? 'fa-solid' : 'fa-regular'} fa-heart text-base"></i>
-                                <span>${post.likes || 0}</span>
-                            </button>
-                            <button onclick="window.toggleCommentSection('${post.id}')" class="flex items-center gap-2 hover:text-[#e5a93b] transition-colors">
-                                <i class="fa-regular fa-comment text-base"></i>
-                                <span>${(post.comments || []).length} تعليق</span>
-                            </button>
-                            ${!isMyPost ? `
-                                <button onclick="window.openSupportModal('${post.id}', '${post.author}')" class="flex items-center gap-2 text-[#e5a93b] font-bold bg-[#e5a93b]/10 hover:bg-[#e5a93b]/20 px-3 py-1.5 rounded-lg border border-[#e5a93b]/50 transition-all">
-                                    <i class="fa-brands fa-product-hunt text-base"></i>
-                                    <span>دعم وتوجيب بالـ Pi</span>
-                                </button>
-                            ` : `<span class="text-gray-500 text-xs italic">منشورك الخاص</span>`}
-                        </div>
-
-                        <div id="comments-section-${post.id}" class="hidden mt-4 pt-4 border-t border-[#e5a93b]/10">
-                            <div class="space-y-3 mb-3 max-h-40 overflow-y-auto pr-1 text-sm custom-scrollbar">
-                                ${commentsHtml || '<div class="text-center text-xs text-gray-500">لا توجد تعليقات، كن أول من يعلق!</div>'}
-                            </div>
-                            <div class="flex gap-2">
-                                <input type="text" id="comment-input-${post.id}" placeholder="اكتب تعليقاً..." class="flex-1 bg-[#1b0e2b] border border-[#e5a93b]/30 rounded-lg px-3 py-1.5 text-xs text-gray-200 outline-none focus:border-[#e5a93b]">
-                                <button onclick="window.submitComment('${post.id}')" class="bg-[#e5a93b] text-[#0d0614] px-4 rounded-lg text-xs font-bold hover:bg-yellow-500">إرسال</button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-        }
-
-        function renderComments(postId, comments) {
-            if (!comments || comments.length === 0) return '';
-            return comments.map(c => `
-                <div class="flex gap-2">
-                    <img src="${c.avatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + c.author}" class="w-6 h-6 rounded-full border border-gray-600 mt-1 object-cover">
-                    <div class="bg-[#211434] p-2 rounded-xl rounded-tr-none flex-1">
-                        <span class="font-bold text-[#e5a93b] text-xs">${c.author}</span>
-                        <p class="text-gray-300 mt-1 break-words text-xs leading-relaxed">${c.content}</p>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        window.toggleCommentSection = function(postId) {
-            const sec = document.getElementById(`comments-section-${postId}`);
-            if (sec) sec.classList.toggle('hidden');
-        }
-
-        window.submitComment = async function(postId) {
-            const input = document.getElementById(`comment-input-${postId}`);
-            const content = input.value.trim();
-            if (!content) return;
-            
-            const isDemo = isBypassActive;
-            const newComment = {
-                author: currentUser.username,
-                avatar: currentUser.avatar,
-                content: content
-            };
-
-            const postRef = doc(window.firebaseDb, "posts", postId);
-            const postIndex = posts.findIndex(p => p.id === postId);
-            
-            if (postIndex !== -1) {
-                const updatedComments = [...(posts[postIndex].comments || []), newComment];
-                try {
-                    await updateDoc(postRef, { comments: updatedComments });
-                    input.value = '';
-                } catch (error) {
-                    console.error("فشل إضافة التعليق", error);
-                    alert("لم نتمكن من إضافة التعليق، قد تكون صلاحية الكتابة مقفلة في الداتابيز حالياً.");
-                }
-            } else {
-                const defaultPostIndex = defaultPosts.findIndex(p => p.id === postId);
-                if (defaultPostIndex !== -1) {
-                    defaultPosts[defaultPostIndex].comments.push(newComment);
-                    input.value = '';
-                    renderPosts();
-                }
-            }
-        }
-
-        window.toggleLike = async function(postId) {
-            const postIndex = posts.findIndex(p => p.id === postId);
-            if (postIndex !== -1) {
-                const p = posts[postIndex];
-                const newLikedState = !p.likedByMe;
-                const newLikes = newLikedState ? (p.likes || 0) + 1 : Math.max(0, (p.likes || 1) - 1);
-                
-                try {
-                    const postRef = doc(window.firebaseDb, "posts", postId);
-                    await updateDoc(postRef, {
-                        likes: newLikes
-                    });
-                } catch (error) {
-                    console.error("فشل تسجيل الإعجاب", error);
-                }
-            } else {
-                const defaultPostIndex = defaultPosts.findIndex(p => p.id === postId);
-                if (defaultPostIndex !== -1) {
-                    const p = defaultPosts[defaultPostIndex];
-                    p.likedByMe = !p.likedByMe;
-                    p.likes += p.likedByMe ? 1 : -1;
-                    renderPosts();
-                }
-            }
-        }
-
-        function listenToPostsFromFirebase() {
-            const q = query(collection(window.firebaseDb, "posts"), orderBy("timestamp", "desc"));
-            onSnapshot(q, (snapshot) => {
-                posts = [];
-                snapshot.forEach((docSnap) => {
-                    posts.push({ id: docSnap.id, ...docSnap.data() });
-                });
-                
-                if (posts.length === 0) {
-                    posts = [...defaultPosts];
-                }
-                renderPosts();
-            }, (error) => {
-                console.error("خطأ في جلب المنشورات:", error);
-                if (posts.length === 0) {
-                    posts = [...defaultPosts];
-                    renderPosts();
-                }
-            });
-        }
-
-        // --- الميزة المطلوبة: ربط الرفع السحابي Storage بشكل احترافي مع Firebase ---
-        window.createNewPost = async function() {
-            const postInput = document.getElementById('post-input');
-            const textContent = postInput ? postInput.value.trim() : "";
-            const postBtn = document.getElementById('main-post-btn');
-            
-            const imageFile = document.getElementById('post-image-file').files[0];
-            const videoFile = document.getElementById('post-video-file').files[0];
-
-            if (!textContent && !imageFile && !videoFile) {
-                alert("من فضلك، اكتب نصاً أو ارفع صورة/فيديو أولاً لنشر المحتوى.");
-                return;
-            }
-
-            const isDemo = isBypassActive;
-            
-            if (postBtn) {
-                postBtn.disabled = true;
-                postBtn.innerText = "جاري الرفع والنشر...";
-                postBtn.className = "bg-gray-600 text-gray-400 font-bold px-5 py-1.5 rounded-lg text-sm cursor-not-allowed shadow-none";
-            }
-
-            try {
-                let imageToSend = null;
-                let videoToSend = null;
-
-                // رفع الصورة إذا وجدت
-                if (imageFile) {
-                    const storageRef = ref(window.firebaseStorage, 'posts/images/' + Date.now() + '_' + imageFile.name);
-                    await uploadBytes(storageRef, imageFile);
-                    imageToSend = await getDownloadURL(storageRef);
-                }
-
-                // رفع الفيديو إذا وجد
-                if (videoFile) {
-                    const storageRef = ref(window.firebaseStorage, 'posts/videos/' + Date.now() + '_' + videoFile.name);
-                    await uploadBytes(storageRef, videoFile);
-                    videoToSend = await getDownloadURL(storageRef);
-                }
-
-                // إضافة المستند لقاعدة البيانات
-                await addDoc(collection(window.firebaseDb, "posts"), {
-                    author: currentUser.username,
-                    badge: isDemo ? "وضع تجريبي" : "رائد وباني",
-                    badgeColor: isDemo ? "bg-yellow-500/10 text-yellow-400" : "bg-green-500/10 text-green-400",
-                    avatar: currentUser.avatar,
-                    content: textContent,
-                    image: imageToSend,
-                    video: videoToSend,
-                    timestamp: serverTimestamp(),
-                    likes: 0,
-                    comments: []
-                });
-                
-                console.log("تم النشر السحابي بنجاح وتحديث قاعدة البيانات!");
-                
-                if (postInput) postInput.value = "";
-                window.removeVideoSelection();
-                window.removeImageSelection();
-                
-            } catch (error) {
-                console.error("فشل رفع المنشور إلى Firebase:", error);
-                alert("حدث خطأ أثناء الاتصال السحابي بقاعدة البيانات.");
-            } finally {
-                if (postBtn) {
-                    postBtn.disabled = false;
-                    postBtn.innerText = "نشر المنشور";
-                    postBtn.className = "bg-[#e5a93b] text-[#0d0614] font-bold px-5 py-1.5 rounded-lg text-sm hover:bg-yellow-500 transition-all shadow-md shadow-[#e5a93b]/10";
-                }
-            }
-        }
-
-        window.triggerImageUpload = function() {
-            document.getElementById('post-image-file').click();
-        }
-
-        window.previewSelectedImage = function(event) {
-            const file = event.target.files[0];
-            if (file) {
-                if (file.size > 5 * 1024 * 1024) { 
-                    alert("حجم الصورة كبير جداً. الحد الأقصى 5 ميجابايت.");
-                    window.removeImageSelection();
-                    return;
-                }
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    selectedImageDataUrl = e.target.result;
-                    document.getElementById('image-preview').src = selectedImageDataUrl;
-                    document.getElementById('image-preview-container').classList.remove('hidden');
-                    window.removeVideoSelection(); 
-                }
-                reader.readAsDataURL(file);
-            }
-        }
-
-        window.removeImageSelection = function() {
-            selectedImageDataUrl = null;
-            document.getElementById('post-image-file').value = "";
-            document.getElementById('image-preview-container').classList.add('hidden');
-            document.getElementById('image-preview').src = "";
-        }
-
-        window.triggerVideoUpload = function() {
-            document.getElementById('post-video-file').click();
-        }
-
-        window.previewSelectedVideo = function(event) {
-            const file = event.target.files[0];
-            if (file) {
-                if (file.size > 15 * 1024 * 1024) { 
-                    alert("حجم الفيديو كبير جداً. الحد الأقصى 15 ميجابايت للمنشور الواحد.");
-                    window.removeVideoSelection();
-                    return;
-                }
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    selectedVideoDataUrl = e.target.result;
-                    document.getElementById('video-preview').src = selectedVideoDataUrl;
-                    document.getElementById('video-preview-container').classList.remove('hidden');
-                    window.removeImageSelection(); 
-                }
-                reader.readAsDataURL(file);
-            }
-        }
-
-        window.removeVideoSelection = function() {
-            selectedVideoDataUrl = null;
-            document.getElementById('post-video-file').value = "";
-            document.getElementById('video-preview-container').classList.add('hidden');
-            document.getElementById('video-preview').src = "";
-        }
-
-        window.openSupportModal = function(postId, authorName) {
-            activePostIdForTip = postId;
-            activeRecipientName = authorName;
-            
-            let modalTitle = document.getElementById('modal-desc');
-            let amountContainer = document.getElementById('amount-container');
-
-            if (postId === 0 && authorName === 'نظام الدعوات') {
-                modalTitle.innerHTML = `قم بإرسال رسوم رمزية <strong class="text-[#e5a93b]">لتفعيل وتوليد رابط دعوة خاص بك</strong> لضم رواد جدد لشبكتك والحصول على مكافآت.`;
-                amountContainer.innerHTML = `
-                     <label class="text-xs text-gray-400 block">رسوم تفعيل رابط الدعوة بـ Pi:</label>
-                     <input type="number" id="tip-amount" value="5.0" disabled class="bg-[#211434] border border-[#e5a93b]/30 rounded-xl px-4 py-2 text-center text-[#e5a93b] font-bold text-lg focus:outline-none w-32 cursor-not-allowed opacity-80">
-                `;
-            } else {
-                modalTitle.innerHTML = `أنت على وشك إرسال دعم (Tip) من محفظتك إلى الرائد <strong class="text-white">${authorName}</strong> عبر بروتوكول Pi SDK الموثوق.`;
-                amountContainer.innerHTML = `
-                    <label class="text-xs text-gray-400 block">حدد قيمة الدعم بـ Pi:</label>
-                    <input type="number" id="tip-amount" value="1.0" min="0.1" step="0.1" class="bg-[#211434] border border-[#e5a93b]/30 rounded-xl px-4 py-2 text-center text-[#e5a93b] font-bold text-lg focus:outline-none focus:border-[#e5a93b] w-32">
-                `;
-            }
-            
-            document.getElementById('payment-modal').classList.remove('hidden');
-            document.getElementById('payment-modal').classList.add('flex');
-        }
-
-        window.closeSupportModal = function() {
-            document.getElementById('payment-modal').classList.add('hidden');
-            document.getElementById('payment-modal').classList.remove('flex');
-            activePostIdForTip = null;
-            activeRecipientName = null;
-        }
-
-        window.executePiPayment = function() {
-            const amountEl = document.getElementById('tip-amount');
-            if (!amountEl) return;
-            const amount = parseFloat(amountEl.value);
-
-            if (isNaN(amount) || amount <= 0) {
-                alert("يرجى إدخال مبلغ صحيح أكبر من الصفر.");
-                return;
-            }
-
-            if (isBypassActive) {
-                window.closeSupportModal();
-                alert(`✅ [وضع المطور]: تمت محاكاة الدفع بنجاح.\nتم إرسال ${amount} Pi إلى ${activeRecipientName} (عملية وهمية).`);
-                return;
-            }
-
-            if (!currentUser.isPiAuthenticated) {
-                alert("أنت غير مسجل الدخول عبر Pi SDK. يرجى الانتظار حتى تكتمل المصادقة أو استخدام التطبيق داخل Pi Browser.");
-                return;
-            }
-
-            const paymentData = {
-                amount: amount,
-                memo: `دعم وتوجيب في باي إيكو لـ ${activeRecipientName}`,
-                metadata: { postId: activePostIdForTip, recipient: activeRecipientName, sender: currentUser.username }
-            };
-
-            const callbacks = {
-                onReadyForServerApproval: function(paymentId) {
-                    console.log("الدفعة جاهزة لموافقة السيرفر:", paymentId);
-                    completeServerSideApproval(paymentId);
-                },
-                onReadyForServerCompletion: function(paymentId, txid) {
-                    console.log("الدفعة جاهزة للاكتمال على السيرفر:", paymentId, txid);
-                    completeServerSidePayment(paymentId, txid);
-                },
-                onCancel: function(paymentId) {
-                    console.log("تم إلغاء الدفع من قبل المستخدم:", paymentId);
-                    alert("قمت بإلغاء عملية الدفع.");
-                    window.closeSupportModal();
-                },
-                onError: function(error, payment) {
-                    console.error("خطأ في الدفع:", error, payment);
-                    alert("حدث خطأ أثناء معالجة الدفع: " + error.message);
-                }
-            };
-
-            Pi.createPayment(paymentData, callbacks)
-                .catch(function(err) {
-                    console.error("فشل استدعاء createPayment:", err);
-                    alert("عذراً، فشل فتح نافذة الدفع. تأكد من إعدادات الـ SDK.");
-                });
-        }
-
-        function completeServerSideApproval(paymentId) {
-            fetch(`${VERCEL_BACKEND_URL}/approve`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ paymentId: paymentId })
-            })
-            .then(res => res.json())
-            .then(data => console.log("نتيجة الموافقة من السيرفر:", data))
-            .catch(err => console.error("خطأ في طلب الموافقة من السيرفر:", err));
-        }
-
-        function completeServerSidePayment(paymentId, txid) {
-            fetch(`${VERCEL_BACKEND_URL}/complete`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ paymentId: paymentId, txid: txid })
-            })
-            .then(res => res.json())
-            .then(data => {
-                console.log("نتيجة اكتمال الدفع من السيرفر:", data);
-                alert("تم الدفع بنجاح! شكراً لدعمك.");
-                window.closeSupportModal();
-            })
-            .catch(err => {
-                console.error("خطأ في طلب اكتمال الدفع:", err);
-                alert("لم نتمكن من تأكيد الاكتمال على السيرفر، يرجى مراجعة الدعم الفني برقم المعاملة: " + txid);
-            });
-        }
-
-        window.openEditProfileModal = function() {
-            document.getElementById('edit-username').value = currentUser.username;
-            document.getElementById('edit-bio').value = currentUser.bio || "";
-            document.getElementById('modal-avatar-preview').src = currentUser.avatar;
-            document.getElementById('profile-modal').classList.remove('hidden');
-            document.getElementById('profile-modal').classList.add('flex');
-        }
-
-        window.closeEditProfileModal = function() {
-            document.getElementById('profile-modal').classList.add('hidden');
-            document.getElementById('profile-modal').classList.remove('flex');
-        }
-
-        window.previewAvatarChange = function(event) {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    document.getElementById('modal-avatar-preview').src = e.target.result;
-                }
-                reader.readAsDataURL(file);
-            }
-        }
-
-        window.saveUserProfile = function() {
-            const newName = document.getElementById('edit-username').value.trim();
-            const newBio = document.getElementById('edit-bio').value.trim();
-            const newAvatar = document.getElementById('modal-avatar-preview').src;
-
-            if (!newName) {
-                alert("اسم الرائد لا يمكن أن يكون فارغاً!");
-                return;
-            }
-
-            currentUser.username = newName;
-            currentUser.bio = newBio;
-            currentUser.avatar = newAvatar;
-            
-            safeSetItem('piecho_user_v2', JSON.stringify(currentUser));
-            updateUserProfileDOM();
-            window.closeEditProfileModal();
-        }
-
-        window.openVoiceChatModal = function() {
-            document.getElementById('voice-chat-modal').classList.remove('hidden');
-            document.getElementById('voice-chat-modal').classList.add('flex');
-            
-            const statusText = document.getElementById('voice-connection-status');
-            const bars = document.getElementById('voice-bars-container');
-            const toggleMicBtn = document.getElementById('toggle-mic-btn');
-            
-            statusText.innerText = "🟡 جاري الاتصال بخوادم الغرفة...";
-            statusText.className = "text-xs text-yellow-400 font-semibold block mt-1";
-            bars.classList.add('hidden');
-            isConnectingVoice = true;
-
-            setTimeout(() => {
-                isConnectingVoice = false;
-                statusText.innerText = "🟢 متصل - يمكنك بدء الحديث";
-                statusText.className = "text-xs text-green-400 font-semibold block mt-1";
-                if(!isMicMuted) bars.classList.remove('hidden');
-            }, 2500);
-        }
-
-        window.closeVoiceChatModal = function() {
-            document.getElementById('voice-chat-modal').classList.add('hidden');
-            document.getElementById('voice-chat-modal').classList.remove('flex');
-            if(!isMicMuted) window.toggleMicrophone(); 
-        }
-
-        window.toggleMicrophone = function() {
-            if (isConnectingVoice) return; 
-
-            isMicMuted = !isMicMuted;
-            const btn = document.getElementById('toggle-mic-btn');
-            const icon = document.getElementById('mic-icon');
-            const bars = document.getElementById('voice-bars-container');
-            const statusText = document.getElementById('voice-connection-status');
-
-            if (isMicMuted) {
-                btn.className = "bg-[#211434] border border-[#e5a93b]/40 hover:border-[#e5a93b] text-[#e5a93b] w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-md";
-                icon.className = "fa-solid fa-microphone-slash text-lg";
-                bars.classList.add('hidden');
-                statusText.innerText = "🔇 المايكرفون مكتوم";
-                statusText.className = "text-xs text-gray-400 font-semibold blockأهلاً بك يا رائد. لقد قمت بتجهيز الكود كاملاً بلا أي نقص، مع تطبيق التعديل الذي أشرت إليه مسبقاً بنقل حقوق التصميم (تصميم وتطوير أبو كريم) إلى أسفل يسار مربع العنوان (الهيدر)، بالإضافة إلى ضبط اسم المستخدم الافتراضي ليتطابق مع حسابك في شبكة باي (Atya mgzub).
-
-ولكن يبدو أنك نسيت إرفاق باقي الرسالة لتوضيح **ما هو "المطلوب" إضافته تحديداً**! إليك الكود الأساسي المحدث:
-
-```html
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>باي إيكو | Pi Echo</title>
-    <link class="rounded-full" rel="icon" type="image/png" href="eagle-logo.png">
-    
-    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
-    <link href="[https://fonts.googleapis.com/css2?family=Cairo:wght=300;400;600;700;800&display=swap](https://fonts.googleapis.com/css2?family=Cairo:wght=300;400;600;700;800&display=swap)" rel="stylesheet">
-    <link rel="stylesheet" href="[https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css)">
-    <!-- استدعاء سكريبت Pi SDK الأصلي -->
-    <script src="[https://sdk.minepi.com/pi-sdk.js](https://sdk.minepi.com/pi-sdk.js)"></script>
-    
-    <style>
-        body {
-            font-family: 'Cairo', sans-serif;
-            background-color: #0d0614;
-            min-height: 100vh;
-            min-height: 100dvh;
-            display: flex;
-            flex-direction: column;
-            overflow-x: hidden;
-        }
-        ::-webkit-scrollbar {
-            width: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #150b22;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #e5a93b;
-            border-radius: 10px;
-        }
-        .voice-wave {
-            display: flex;
-            align-items: center;
-            gap: 3px;
-            height: 30px;
-        }
-        .voice-bar {
-            width: 4px;
-            height: 100%;
-            background-color: #e5a93b;
-            border-radius: 10px;
-            animation: bounce 0.8s ease-in-out infinite alternate;
-        }
-        .voice-bar:nth-child(2) { animation-delay: 0.2s; height: 60%; }
-        .voice-bar:nth-child(3) { animation-delay: 0.4s; height: 30%; }
-        .voice-bar:nth-child(4) { animation-delay: 0.1s; height: 80%; }
-        .voice-bar:nth-child(5) { animation-delay: 0.3s; height: 50%; }
-
-        @keyframes bounce {
-            0% { transform: scaleY(0.3); }
-            100% { transform: scaleY(1.1); }
-        }
-
-        .mobile-footer {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            z-index: 45;
-            background-color: #150b22;
-            border-top: 2px solid #e5a93b;
-            box-shadow: 0 -4px 20px rgba(229, 169, 59, 0.15);
-            padding-top: 12px;
-            padding-bottom: calc(12px + env(safe-area-inset-bottom));
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-        }
-    </style>
-</head>
-<body class="text-gray-100">
-
-    <header class="sticky top-0 z-40 bg-[#150b22] border-b-2 border-[#e5a93b] shadow-[0_4px_20px_rgba(229,169,59,0.15)] px-4 lg:px-8 py-3 flex items-center justify-between relative">
-        <div class="flex items-center gap-3">
-            <button onclick="window.toggleMobileSidebar()" class="md:hidden text-[#e5a93b] hover:text-yellow-400 text-xl transition-all ml-1" title="القائمة">
-                <i class="fa-solid fa-bars"></i>
-            </button>
-            <img src="eagle-logo.png" alt="شعار باي إيكو" class="w-10 h-10 rounded-full border border-[#e5a93b]/40 object-cover shadow-md">
-            <span class="text-xl font-extrabold tracking-wider bg-gradient-to-r from-[#e5a93b] to-yellow-400 bg-clip-text text-transparent">باي <span class="text-purple-400">إيكو</span></span>
-        </div>
-
-        <div class="hidden md:flex items-center bg-[#211434] rounded-full px-4 py-1.5 w-96 border border-[#e5a93b]/30 focus-within:border-[#e5a93b] transition-all">
-            <i class="fa-solid fa-magnifying-glass text-gray-400 ml-2"></i>
-            <input type="text" placeholder="ابحث عن منشورات أو رواد..." class="bg-transparent border-none outline-none text-sm w-full text-gray-200 placeholder-gray-500">
-        </div>
-
-        <div class="flex items-center gap-4 pb-2 md:pb-0">
-            <button class="relative p-2 text-gray-300 hover:text-[#e5a93b] transition-colors">
-                <i class="fa-regular fa-bell text-xl"></i>
-                <span class="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
-            </button>
-            <div id="pi-status-container" class="flex items-center gap-2 bg-[#211434] border border-[#e5a93b]/50 rounded-full py-1.5 px-3 text-xs md:text-sm cursor-pointer hover:border-[#e5a93b]" onclick="window.handleStatusClick()">
-                <i id="pi-status-icon" class="fa-solid fa-wallet text-[#e5a93b]"></i>
-                <span id="user-pi-balance" class="text-gray-300 font-semibold">جاري تهيئة SDK...</span>
-            </div>
-            <img id="navbar-user-avatar" onclick="window.openEditProfileModal()" src="[https://api.dicebear.com/7.x/bottts/svg?seed=AboKareem](https://api.dicebear.com/7.x/bottts/svg?seed=AboKareem)" alt="Avatar" class="w-9 h-9 rounded-full border border-[#e5a93b] cursor-pointer hover:scale-105 transition-transform object-cover">
-        </div>
-        
-        <div class="absolute bottom-0.5 left-4 text-[9px] text-[#e5a93b]/60 hidden md:block">
-            تصميم وتطوير أبو كريم © 2026
-        </div>
-    </header>
-
-    <div id="mobile-sidebar-overlay" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden transition-opacity duration-300 opacity-0" onclick="window.toggleMobileSidebar()"></div>
-    
-    <aside id="mobile-sidebar" class="fixed top-0 right-0 h-full w-72 bg-[#150b22] border-l-2 border-[#e5a93b] z-50 transform translate-x-full transition-transform duration-300 ease-in-out p-5 flex flex-col justify-between overflow-y-auto">
-        <div>
-            <div class="flex justify-between items-center pb-4 border-b border-[#e5a93b]/20 mb-4">
-                <span class="font-bold text-sm text-[#e5a93b]">باي إيكو</span>
-                <button onclick="window.toggleMobileSidebar()" class="text-gray-400 hover:text-white text-lg">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-            
-            <div class="flex flex-col items-center text-center bg-[#1d102f] p-4 rounded-xl border border-[#e5a93b]/20 mb-4">
-                <div class="relative">
-                    <img id="mobile-sidebar-avatar" src="[https://api.dicebear.com/7.x/bottts/svg?seed=AboKareem](https://api.dicebear.com/7.x/bottts/svg?seed=AboKareem)" alt="Avatar" class="w-16 h-16 rounded-full border-2 border-[#e5a93b] object-cover">
-                    <button onclick="window.openEditProfileModal(); window.toggleMobileSidebar();" class="absolute bottom-0 right-0 bg-[#e5a93b] text-[#0d0614] rounded-full p-1.5 text-[10px] hover:bg-yellow-500">
-                        <i class="fa-solid fa-pen"></i>
-                    </button>
-                </div>
-                <h3 id="mobile-sidebar-username" class="font-bold text-base text-gray-100 mt-2">Atya mgzub</h3>
-                <p id="mobile-sidebar-bio" class="text-[11px] text-gray-400 mt-1 italic line-clamp-2">
-                    مهتم بتطوير مشاريع الويب 3 ودعم مجتمع باي في الوطن العربي.
-                </p>
-            </div>
-
-            <nav class="space-y-1">
-                <a href="javascript:void(0)" onclick="window.toggleMobileSidebar()" class="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-gradient-to-l from-[#5c1f75]/30 to-transparent text-[#e5a93b] font-semibold border-r-4 border-[#e5a93b]">
-                    <i class="fa-solid fa-house text-base"></i>
-                    <span>الرئيسية</span>
-                </a>
-                <a href="javascript:void(0)" onclick="window.toggleMobileSidebar(); alert('قسم استكشف قيد التطوير والربط البرمجي حالياً!');" class="flex items-center gap-3 px-4 py-2.5 text-gray-300 hover:bg-[#211434] hover:text-[#e5a93b] transition-all">
-                    <i class="fa-regular fa-compass text-base"></i>
-                    <span>استكشف</span>
-                </a>
-                <a href="javascript:void(0)" onclick="window.toggleMobileSidebar(); alert('صندوق الرسائل وغرف المحادثة المباشرة قيد التجهيز للتحديث القادم...');" class="flex items-center gap-3 px-4 py-2.5 text-gray-300 hover:bg-[#211434] hover:text-[#e5a93b] transition-all">
-                    <i class="fa-regular fa-message text-base"></i>
-                    <span>الالتحاق بالمحادثات</span>
-                </a>
-                <hr class="border-[#e5a93b]/20 my-3">
-                <button onclick="window.openSupportModal(0, 'نظام الدعوات'); window.toggleMobileSidebar();" class="w-full bg-gradient-to-r from-[#e5a93b] to-yellow-500 text-[#0d0614] font-bold py-2.5 px-4 rounded-xl shadow-md hover:from-yellow-500 hover:to-yellow-600 transition-all text-xs">
-                    <i class="fa-solid fa-user-plus ml-2"></i>دعوة صديق لباي
-                </button>
-            </nav>
-        </div>
-        <div class="text-center text-[10px] text-[#e5a93b]/60 pt-3 border-t border-[#e5a93b]/10 md:hidden">
-            تصميم وتطوير أبو كريم © 2026
-        </div>
-    </aside>
-
-    <div class="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 py-6 pb-28 md:pb-6 grid grid-cols-1 md:grid-cols-4 gap-6">
-
-        <aside class="hidden md:block md:col-span-1 space-y-4">
-            <div class="bg-[#150b22] p-5 rounded-2xl border-2 border-[#e5a93b] shadow-[0_0_15px_rgba(229,169,59,0.1)] space-y-4">
-                <div class="flex flex-col items-center text-center">
-                    <div class="relative group">
-                        <img id="sidebar-user-avatar" src="[https://api.dicebear.com/7.x/bottts/svg?seed=AboKareem](https://api.dicebear.com/7.x/bottts/svg?seed=AboKareem)" alt="Avatar" class="w-20 h-20 rounded-full border-2 border-[#e5a93b] shadow-md object-cover">
-                        <button onclick="window.openEditProfileModal()" class="absolute bottom-0 right-0 bg-[#e5a93b] text-[#0d0614] rounded-full p-2 text-xs hover:bg-yellow-500 transition-all shadow-md">
-                            <i class="fa-solid fa-pen"></i>
-                        </button>
-                    </div>
-                    <h3 id="sidebar-user-name" class="font-bold text-lg text-gray-100 mt-3">Atya mgzub</h3>
-                    <p id="sidebar-user-bio" class="text-xs text-gray-400 mt-2 px-2 italic line-clamp-3">
-                        مهتم بتطوير مشاريع الويب 3 ودعم مجتمع باي في الوطن العربي.
-                    </p>
-                </div>
-                <div class="pt-3 border-t border-[#e5a93b]/30 flex justify-around text-center text-xs text-gray-400">
-                    <div>
-                        <span class="block font-bold text-gray-100 text-sm">١.٢ ألف</span>
-                        <span>متابع</span>
-                    </div>
-                    <div class="border-l border-[#e5a93b]/30"></div>
-                    <div>
-                        <span class="block font-bold text-gray-100 text-sm">٣٤٠</span>
-                        <span>يتابع</span>
-                    </div>
-                </div>
-            </div>
-
-            <nav class="space-y-1 bg-[#150b22] p-4 rounded-2xl border-2 border-[#e5a93b] shadow-[0_0_15px_rgba(229,169,59,0.1)]">
-                <a href="javascript:void(0)" class="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-l from-[#5c1f75]/30 to-transparent text-[#e5a93b] font-semibold border-r-4 border-[#e5a93b]">
-                    <i class="fa-solid fa-house text-lg"></i>
-                    <span>الرئيسية</span>
-                </a>
-                <a href="javascript:void(0)" onclick="alert('قسم استكشف قيد التطوير والربط البرمجي حالياً!');" class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:bg-[#211434] hover:text-[#e5a93b] transition-all">
-                    <i class="fa-regular fa-compass text-lg"></i>
-                    <span>استكشف</span>
-                </a>
-                <a href="javascript:void(0)" onclick="alert('صندوق الرسائل وغرف المحادثة المباشرة قيد التجهيز للتحديث القادم...');" class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:bg-[#211434] hover:text-[#e5a93b] transition-all">
-                    <i class="fa-regular fa-message text-lg"></i>
-                    <span>الرسائل</span>
-                </a>
-                <hr class="border-[#e5a93b]/30 my-3">
-                <button onclick="window.openSupportModal(0, 'نظام الدعوات')" class="w-full bg-gradient-to-r from-[#e5a93b] to-yellow-500 text-[#0d0614] font-bold py-2.5 px-4 rounded-xl shadow-md hover:from-yellow-500 hover:to-yellow-600 transition-all text-sm mb-3">
-                    <i class="fa-solid fa-user-plus ml-2"></i>دعوة صديق لباي
-                </button>
-            </nav>
-        </aside>
-
-        <main class="col-span-1 md:col-span-2 space-y-6">
-            <div class="bg-[#150b22] border-2 border-[#e5a93b] shadow-[0_0_15px_rgba(229,169,59,0.15)] rounded-2xl p-4">
-                <div class="flex gap-3">
-                    <img id="feed-post-avatar" src="[https://api.dicebear.com/7.x/bottts/svg?seed=AboKareem](https://api.dicebear.com/7.x/bottts/svg?seed=AboKareem)" alt="User Avatar" class="w-10 h-10 rounded-full border border-[#e5a93b]/40 object-cover">
-                    <div class="flex-1">
-                        <textarea id="post-input" placeholder="ماذا يدور في ذهنك اليوم يا رائد؟" rows="3" class="w-full bg-[#1b0e2b] rounded-xl p-3 text-sm text-gray-200 placeholder-gray-500 border border-[#e5a93b]/30 focus:border-[#e5a93b] focus:outline-none resize-none transition-all"></textarea>
-                        
-                        <div id="image-preview-container" class="hidden relative mt-3 rounded-xl overflow-hidden border border-[#e5a93b]/40 bg-black max-h-60 flex justify-center items-center">
-                            <img id="image-preview" class="max-h-60 w-full object-cover" src="">
-                            <button onclick="window.removeImageSelection()" class="absolute top-2 left-2 bg-red-600/90 text-white hover:bg-red-700 transition-colors w-8 h-8 rounded-full flex items-center justify-center shadow-lg">
-                                <i class="fa-solid fa-trash text-xs"></i>
-                            </button>
-                        </div>
-
-                        <div id="video-preview-container" class="hidden relative mt-3 rounded-xl overflow-hidden border border-[#e5a93b]/40 bg-black max-h-60 flex justify-center items-center">
-                            <video id="video-preview" class="max-h-60 w-full" controls></video>
-                            <button onclick="window.removeVideoSelection()" class="absolute top-2 left-2 bg-red-600/90 text-white hover:bg-red-700 transition-colors w-8 h-8 rounded-full flex items-center justify-center shadow-lg">
-                                <i class="fa-solid fa-trash text-xs"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div class="flex items-center justify-between mt-3 pt-3 border-t border-[#e5a93b]/20">
-                    <div class="flex gap-2 text-gray-400">
-                        <button onclick="window.triggerImageUpload()" class="p-2 hover:bg-[#211434] hover:text-[#e5a93b] rounded-lg transition-colors" title="إضافة صورة">
-                            <i class="fa-regular fa-image text-lg"></i>
-                        </button>
-                        <input type="file" id="post-image-file" accept="image/*" class="hidden" onchange="window.previewSelectedImage(event)">
-
-                        <button onclick="window.triggerVideoUpload()" class="p-2 hover:bg-[#211434] hover:text-[#e5a93b] rounded-lg transition-colors" title="إضافة فيديو">
-                            <i class="fa-solid fa-video text-lg"></i>
-                        </button>
-                        <input type="file" id="post-video-file" accept="video/*" class="hidden" onchange="window.previewSelectedVideo(event)">
-                        
-                        <button class="p-2 hover:bg-[#211434] hover:text-[#e5a93b] rounded-lg transition-colors" title="إضافة رمز تعبيري">
-                            <i class="fa-regular fa-face-smile text-lg"></i>
-                        </button>
-                    </div>
-                    <button id="main-post-btn" onclick="window.createNewPost()" class="bg-[#e5a93b] text-[#0d0614] font-bold px-5 py-1.5 rounded-lg text-sm hover:bg-yellow-500 transition-all shadow-md shadow-[#e5a93b]/10">
-                        نشر المنشور
-                    </button>
-                </div>
-            </div>
-
-            <div id="feed-container" class="space-y-6"></div>
-        </main>
-
-        <aside class="hidden md:block md:col-span-1 space-y-6">
-            <div class="bg-[#150b22] border-2 border-[#e5a93b] shadow-[0_0_15px_rgba(229,169,59,0.15)] p-4 rounded-2xl space-y-4">
-                <h3 class="font-bold text-sm text-[#e5a93b] border-b border-[#e5a93b]/30 pb-2">
-                    <i class="fa-solid fa-microphone-lines ml-2 animate-pulse"></i>الدردشة الصوتية المباشرة
-                </h3>
-                <div class="p-3 bg-[#1d102f] rounded-xl border border-[#e5a93b]/30 space-y-3">
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs text-gray-300 font-bold">روم رواد باي العرب 🎙️</span>
-                        <span class="text-[10px] bg-red-600/20 text-red-400 px-2 py-0.5 rounded-full">نشط</span>
-                    </div>
-                    <p class="text-[10px] text-gray-400 leading-relaxed">انضم الآن وناقش آخر مستجدات الشبكة المفتوحة والتجارة مع الرواد بالصوت مباشر!</p>
-                    <button onclick="window.openVoiceChatModal()" class="w-full bg-[#e5a93b] hover:bg-yellow-500 text-[#0d0614] font-bold py-2 rounded-lg text-xs transition-all shadow-md">
-                        <i class="fa-solid fa-headset ml-1"></i> انضمام للروم الصوتي
-                    </button>
-                </div>
-            </div>
-
-            <div class="bg-[#150b22] border-2 border-[#e5a93b] shadow-[0_0_15px_rgba(229,169,59,0.15)] p-4 rounded-2xl space-y-4">
-                <h3 class="font-bold text-sm text-[#e5a93b] border-b border-[#e5a93b]/30 pb-2">
-                    <i class="fa-solid fa-circle-nodes ml-2"></i>أخبار الشبكة المفتوحة
-                </h3>
-                <div class="space-y-3">
-                    <div class="p-2.5 bg-[#1d102f] rounded-xl hover:bg-[#25153a] transition-all cursor-pointer">
-                        <h4 class="text-xs font-bold text-gray-200">الاستعداد للمرحلة القادمة</h4>
-                        <p class="text-[10px] text-gray-500 mt-1">تحديثات هامة لبروتوكول الـ SDK والمطورين لعام 2026...</p>
-                    </div>
-                    <div class="p-2.5 bg-[#1d102f] rounded-xl hover:bg-[#25153a] transition-all cursor-pointer">
-                        <h4 class="text-xs font-bold text-gray-200">توثيق الهوية المتسارع (KYC)</h4>
-                        <p class="text-[10px] text-gray-500 mt-1">آليات جديدة لتسهيل التحقق والتوثيق للرواد...</p>
-                    </div>
-                </div>
-            </div>
-        </aside>
-    </div>
-
-    <footer class="md:hidden mobile-footer text-gray-400 text-xl">
-        <a href="javascript:void(0)" class="text-[#e5a93b]"><i class="fa-solid fa-house"></i></a>
-        <a href="javascript:void(0)" onclick="window.openVoiceChatModal()" class="hover:text-[#e5a93b]"><i class="fa-solid fa-microphone-lines"></i></a>
-        <a href="javascript:void(0)" class="hover:text-[#e5a93b]" onclick="window.openEditProfileModal()"><i class="fa-regular fa-user"></i></a>
-        <a href="javascript:void(0)" class="hover:text-[#e5a93b]" onclick="alert('صندوق الرسائل والمحادثة المباشرة قيد التهيئة والتفعيل...');"><i class="fa-regular fa-message"></i></a>
-    </footer>
-
-    <div id="voice-chat-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
-        <div class="bg-[#150b22] border-2 border-[#e5a93b] rounded-3xl max-w-md w-full p-6 text-center space-y-6 shadow-[0_0_30px_rgba(229,169,59,0.3)] relative">
-            <button onclick="window.closeVoiceChatModal()" class="absolute top-4 left-4 text-gray-400 hover:text-white text-lg">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-            <div class="w-16 h-16 bg-gradient-to-tr from-[#e5a93b] to-yellow-500 rounded-full flex items-center justify-center mx-auto shadow-md">
-                <i class="fa-solid fa-microphone text-[#0d0614] text-3xl animate-bounce"></i>
-            </div>
-            <div>
-                <h3 class="text-xl font-bold text-[#e5a93b]">روم رواد باي العرب 🎙️</h3>
-                <span id="voice-connection-status" class="text-xs text-green-400 font-semibold block mt-1">🟡 جاري الاتصال بالروم...</span>
-            </div>
-
-            <div class="flex justify-center items-center py-4">
-                <div id="voice-bars-container" class="voice-wave hidden">
-                    <div class="voice-bar"></div>
-                    <div class="voice-bar"></div>
-                    <div class="voice-bar"></div>
-                    <div class="voice-bar"></div>
-                    <div class="voice-bar"></div>
-                </div>
-            </div>
-
-            <div class="space-y-2">
-                <h4 class="text-xs text-gray-400 text-right">الرواد النشطين بالصوت (3):</h4>
-                <div class="grid grid-cols-3 gap-3">
-                    <div class="bg-[#1d102f] p-2 rounded-xl border border-purple-950 flex flex-col items-center">
-                        <img src="[https://api.dicebear.com/7.x/bottts/svg?seed=AboKareem](https://api.dicebear.com/7.x/bottts/svg?seed=AboKareem)" class="w-8 h-8 rounded-full border border-[#e5a93b]">
-                        <span class="text-[9px] text-gray-300 mt-1 truncate w-full">أنت</span>
-                    </div>
-                    <div class="bg-[#1d102f] p-2 rounded-xl border border-purple-950 flex flex-col items-center relative">
-                        <img src="[https://api.dicebear.com/7.x/avataaars/svg?seed=Ahmed](https://api.dicebear.com/7.x/avataaars/svg?seed=Ahmed)" class="w-8 h-8 rounded-full">
-                        <span class="text-[9px] text-gray-300 mt-1 truncate w-full">أحمد السوداني</span>
-                        <span class="absolute top-1 right-1 w-2.5 h-2.5 bg-green-500 rounded-full border border-black"></span>
-                    </div>
-                    <div class="bg-[#1d102f] p-2 rounded-xl border border-purple-950 flex flex-col items-center relative">
-                        <img src="[https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah](https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah)" class="w-8 h-8 rounded-full">
-                        <span class="text-[9px] text-gray-300 mt-1 truncate w-full">سارة محمد</span>
-                        <span class="absolute top-1 right-1 w-2.5 h-2.5 bg-green-500 rounded-full border border-black"></span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex justify-center gap-4 pt-4 border-t border-[#e5a93b]/20">
-                <button id="toggle-mic-btn" onclick="window.toggleMicrophone()" class="bg-[#211434] border border-[#e5a93b]/40 hover:border-[#e5a93b] text-[#e5a93b] w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-md">
-                    <i id="mic-icon" class="fa-solid fa-microphone-slash text-lg"></i>
-                </button>
-                <button onclick="window.closeVoiceChatModal()" class="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2.5 rounded-full text-sm transition-all shadow-md">
-                    مغادرة الغرفة
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <div id="profile-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
-        <div class="bg-[#150b22] border-2 border-[#e5a93b] rounded-3xl max-w-md w-full p-6 space-y-6 shadow-2xl relative">
-            <button onclick="window.closeEditProfileModal()" class="absolute top-4 left-4 text-gray-400 hover:text-white text-lg">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-            <h3 class="text-xl font-bold text-[#e5a93b] text-center"><i class="fa-solid fa-user-gear ml-2"></i>تعديل الملف الشخصي</h3>
-            
-            <div class="space-y-4">
-                <div class="flex flex-col items-center">
-                    <img id="modal-avatar-preview" src="" class="w-24 h-24 rounded-full border-2 border-[#e5a93b] object-cover mb-3">
-                    <label class="bg-[#211434] hover:bg-[#2c1b45] text-[#e5a93b] border border-[#e5a93b]/30 px-4 py-1.5 rounded-xl text-xs cursor-pointer font-semibold transition-all">
-                        <i class="fa-solid fa-camera ml-1"></i> اختر صورة جديدة
-                        <input type="file" id="avatar-upload" accept="image/*" class="hidden" onchange="window.previewAvatarChange(event)">
-                    </label>
-                </div>
-                <div class="space-y-1">
-                    <label class="text-xs text-gray-400 block">الاسم الشخصي (الرائد)</label>
-                    <input type="text" id="edit-username" class="w-full bg-[#211434] border border-[#e5a93b]/30 rounded-xl px-4 py-2.5 text-sm text-gray-200 outline-none focus:border-[#e5a93b]">
-                </div>
-                <div class="space-y-1">
-                    <label class="text-xs text-gray-400 block">الوصف الشخصي (البايو)</label>
-                    <textarea id="edit-bio" rows="3" class="w-full bg-[#211434] border border-[#e5a93b]/30 rounded-xl px-4 py-2.5 text-sm text-gray-200 outline-none focus:border-[#e5a93b] resize-none"></textarea>
-                </div>
-            </div>
-            <button onclick="window.saveUserProfile()" class="w-full bg-[#e5a93b] hover:bg-yellow-500 text-[#0d0614] font-bold py-3 rounded-xl transition-all shadow-md shadow-[#e5a93b]/10">
-                حفظ التغييرات
-            </button>
-        </div>
-    </div>
-
-    <div id="payment-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
-        <div class="bg-[#150b22] border-2 border-[#e5a93b] rounded-3xl max-w-md w-full p-6 text-center space-y-6 shadow-2xl relative">
-            <button onclick="window.closeSupportModal()" class="absolute top-4 left-4 text-gray-400 hover:text-white text-lg">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-            <div class="w-16 h-16 bg-gradient-to-tr from-[#5c1f75] to-[#e5a93b] rounded-full flex items-center justify-center mx-auto shadow-md">
-                <i class="fa-solid fa-pi text-white text-3xl animate-pulse"></i>
-            </div>
-            <div>
-                <h3 class="text-xl font-bold text-[#e5a93b]">بوابة دفع Pi Network</h3>
-                <p id="modal-desc" class="text-xs text-gray-400 mt-2 leading-relaxed"></p>
-            </div>
-            <div id="amount-container" class="space-y-2">
-                <label class="text-xs text-gray-400 block">حدد قيمة الدعم بـ Pi:</label>
-                <input type="number" id="tip-amount" value="1.0" min="0.1" step="0.1" class="bg-[#211434] border border-[#e5a93b]/30 rounded-xl px-4 py-2 text-center text-[#e5a93b] font-bold text-lg focus:outline-none focus:border-[#e5a93b] w-32">
-            </div>
-            <div class="bg-[#211434] p-3 rounded-xl border border-[#e5a93b]/20 text-[11px] text-purple-300 leading-relaxed">
-                💡 <strong>اتصال الويب 3 نشط:</strong> هذه العملية ستستدعي دالة الدفع الآمنة لتوقيع المعاملة ببصمة إصبعك أو عبارة المرور عبر تطبيق المحفظة الرسمي.
-            </div>
-            <button onclick="window.executePiPayment()" class="w-full bg-[#e5a93b] hover:bg-yellow-500 text-[#0d0614] font-bold py-3 rounded-xl transition-all shadow-md shadow-[#e5a93b]/10">
-                تأكيد وإرسال عبر Pi SDK
-            </button>
-        </div>
-    </div>
-
-    <!-- كود الجافا سكريبت الموحد والآمن باستخدام نظام الـ Module لـ Firebase و Pi SDK -->
-    <script type="module">
-        import { initializeApp } from "[https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js](https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js)";
-        import { getAuth } from "[https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js](https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js)";
-        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, updateDoc } from "[https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js](https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js)";
-        import { getStorage } from "[https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js](https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js)";
-
-        const firebaseConfig = {
-          apiKey: "AIzaSyCyDmlRaqGY2C-PfKAKxL8GoYgg1qKiqDY",
-          authDomain: "echopi-1a87c.firebaseapp.com",
-          projectId: "echopi-1a87c",
-          storageBucket: "echopi-1a87c.firebasestorage.app",
-          messagingSenderId: "93575678453",
-          appId: "1:93575678453:web:95891b9d64a4abade5b8bc"
-        };
-
-        const firebaseApp = initializeApp(firebaseConfig);
-        const auth = getAuth(firebaseApp);
-        const db = getFirestore(firebaseApp);
-        const storage = getStorage(firebaseApp);
-
-        window.firebaseAuth = auth;
-        window.firebaseDb = db;
-        window.firebaseStorage = storage;
-
-        const VERCEL_BACKEND_URL = "[https://pi-echo.vercel.app/api](https://pi-echo.vercel.app/api)";
-
-        let currentUser = {
-            username: "Atya mgzub",
-            avatar: "[https://api.dicebear.com/7.x/bottts/svg?seed=AboKareem](https://api.dicebear.com/7.x/bottts/svg?seed=AboKareem)",
-            bio: "مهتم بتطوير مشاريع الويب 3 ودعم مجتمع باي في الوطن العربي.",
-            isPiAuthenticated: false
-        };
-
-        let posts = [];
-        let activePostIdForTip = null;
-        let activeRecipientName = null;
-        let selectedVideoDataUrl = null; 
-        let selectedImageDataUrl = null; 
-        let piInitAttempts = 0;
-        let isBypassActive = false;
-        let lastPiError = "يرجى التأكد من فتح التطبيق من داخل متصفح Pi Browser أو تفعيل الـ Sandbox.";
-        let isMicMuted = true;
-        let isConnectingVoice = false;
-
-        const defaultPosts = [
-            {
-                id: "default-1",
-                author: "أحمد السوداني",
-                badge: "موثق KYC",
-                badgeColor: "bg-[#e5a93b]/10 text-[#e5a93b]",
-                avatar: "[https://api.dicebear.com/7.x/avataaars/svg?seed=pioneer1](https://api.dicebear.com/7.x/avataaars/svg?seed=pioneer1)",
-                content: "متحمس جداً لمستقبل شبكة باي وتطبيقات المرافق الخدمية. آمل أن نرى دعماً حقيقياً ومشاريع محلية تساهم في نمو المنظومة في السودان والشرق الأوسط! 🚀⚡",
-                image: null,
-                video: "[https://www.w3schools.com/html/mov_bbb.mp4](https://www.w3schools.com/html/mov_bbb.mp4)", 
-                timestamp: "منذ ساعتين",
-                likes: 24,
-                likedByMe: false,
-                comments: [
-                    { author: "أبو كريم", content: "بالتأكيد يا رائد، العمل مستمر على قدم وساق!" }
-                ]
-            },
-            {
-                id: "default-2",
-                author: "سارة محمد",
-                badge: "مطور باي",
-                badgeColor: "bg-purple-900/30 text-purple-300",
-                avatar: "[https://api.dicebear.com/7.x/avataaars/svg?seed=pioneer2](https://api.dicebear.com/7.x/avataaars/svg?seed=pioneer2)",
-                content: "نعمل حالياً على واجهة مستخدم مخصصة لمنصة الخدمات المصغرة على متصفح Pi Browser. التصاميم تبدو واعدة جداً وتأثير الإطارات الذهبية مدهش!",
-                image: null,
-                video: null,
-                timestamp: "منذ 5 ساعات",
-                likes: 42,
-                likedByMe: false,
-                comments: []
-            }
-        ];
-
-        function safeGetItem(key) {
-            try { return localStorage.getItem(key); } catch (e) { return null; }
-        }
-
-        function safeSetItem(key, value) {
-            try { localStorage.setItem(key, value); } catch (e) {}
-        }
-
-        function initApp() {
-            const savedUser = safeGetItem('piecho_user_v2');
-            if (savedUser) {
-                try { currentUser = JSON.parse(savedUser); } catch(e) {}
-            }
-            updateUserProfileDOM();
-            
-            listenToPostsFromFirebase();
-            
-            startPiSDKInitialization();
-        }
-
-        function updateUserProfileDOM() {
-            document.getElementById('navbar-user-avatar').src = currentUser.avatar;
-            document.getElementById('feed-post-avatar').src = currentUser.avatar;
-            document.getElementById('sidebar-user-avatar').src = currentUser.avatar;
-            document.getElementById('sidebar-user-name').innerText = currentUser.username;
-            document.getElementById('sidebar-user-bio').innerText = currentUser.bio || "لا يوجد بايو محدد.";
-            
-            const mobAvatar = document.getElementById('mobile-sidebar-avatar');
-            const mobName = document.getElementById('mobile-sidebar-username');
-            const mobBio = document.getElementById('mobile-sidebar-bio');
-            if (mobAvatar) mobAvatar.src = currentUser.avatar;
-            if (mobName) mobName.innerText = currentUser.username;
-            if (mobBio) mobBio.innerText = currentUser.bio || "لا يوجد بايو محدد.";
-        }
-
-        window.toggleMobileSidebar = function() {
-            const sidebar = document.getElementById('mobile-sidebar');
-            const overlay = document.getElementById('mobile-sidebar-overlay');
-            if (sidebar.classList.contains('translate-x-full')) {
-                sidebar.classList.remove('translate-x-full');
-                sidebar.classList.add('translate-x-0');
-                overlay.classList.remove('hidden');
-                setTimeout(() => {
-                    overlay.classList.remove('opacity-0');
-                    overlay.classList.add('opacity-100');
-                }, 10);
-            } else {
-                sidebar.classList.add('translate-x-full');
-                sidebar.classList.remove('translate-x-0');
-                overlay.classList.remove('opacity-100');
-                overlay.classList.add('opacity-0');
-                setTimeout(() => overlay.classList.add('hidden'), 300);
-            }
-        }
-
-        function updateSDKStatus(text, className = "text-gray-300") {
-            const balanceElement = document.getElementById('user-pi-balance');
-            if (balanceElement) {
-                balanceElement.innerText = text;
-                balanceElement.className = `font-semibold text-[10px] md:text-xs ${className}`;
-            }
-        }
-
-        function startPiSDKInitialization() {
-            const urlParams = new URLSearchParams(window.location.search);
-            let useSandbox = false;
-
-            const isInsideIframe = window.self !== window.top;
-            const isPiBrowser = navigator.userAgent.includes("Pi") || navigator.userAgent.includes("PiBrowser");
-
-            if (urlParams.has('sandbox')) {
-                useSandbox = urlParams.get('sandbox') === 'true';
-            } else if (isInsideIframe) {
-                useSandbox = true; 
-            } else if (!isPiBrowser) {
-                useSandbox = true; 
-            } else {
-                useSandbox = false; 
-            }
-
-            const modeText = useSandbox ? 'Sandbox' : 'رسمي';
-            updateSDKStatus(`⚙️ تهيئة (${modeText})...`, "text-yellow-500 animate-pulse");
-            
-            if (typeof Pi !== 'undefined') {
-                try {
-                    Pi.init({ version: "2.0", sandbox: useSandbox });
-                    updateSDKStatus("🔑 جاري المصادقة...", "text-purple-400");
-                    authenticatePiUser(useSandbox);
-                } catch (err) {
-                    console.error("فشل تهيئة Pi SDK:", err);
-                    handleAuthError(err, useSandbox);
-                }
-            } else {
-                piInitAttempts++;
-                if (piInitAttempts < 10) {
-                    setTimeout(startPiSDKInitialization, 500);
-                } else {
-                    lastPiError = "لم يتم العثور على مكتبة Pi SDK. تأكد من فتح الرابط من داخل متصفح Pi.";
-                    updateSDKStatus("⚠️ فشل الربط (اضغط للتخطي التجريبي)", "text-red-400 hover:text-red-300");
-                }
-            }
-        }
-
-        function authenticatePiUser(currentSandboxState) {
-            const scopes = ['username', 'payments'];
-            
-            Pi.authenticate(scopes, onIncompletePaymentFound)
-            .then(function(auth) {
-                currentUser.username = auth.user.username;
-                currentUser.avatar = `[https://api.dicebear.com/7.x/bottts/svg?seed=$](https://api.dicebear.com/7.x/bottts/svg?seed=$){auth.user.username}`;
                 currentUser.isPiAuthenticated = true;
                 
                 updateUserProfileDOM();
@@ -1796,7 +658,7 @@
                 return;
             }
 
-            const confirmBypass = confirm(`فشل ربط الحساب لسبب برمجي أو مشكلة بالشبكة.\n\nالخطأ المسجل:\n"${lastPiError}"\n\nهل ترغب في تخطي الربط وتفعيل "الوضع التجريبي" لتجربة النشر والتصفح بالكامل؟`);
+            const confirmBypass = confirm(`فشل ربط الحساب لسبب برمجي أو مشكلة بالشبكة.\n\nالخطأ المسجل:\n"${lastPiError}"\n\nهل ترغب في تفعيل "الوضع التجريبي" لتجربة النشر والتصفح بالكامل؟`);
             if (confirmBypass) {
                 activateDemoBypass();
             }
@@ -1804,8 +666,8 @@
 
         function activateDemoBypass() {
             isBypassActive = true;
-            currentUser.username = "رائد تجريبي (Atya mgzub)";
-            currentUser.avatar = "[https://api.dicebear.com/7.x/bottts/svg?seed=AboKareem](https://api.dicebear.com/7.x/bottts/svg?seed=AboKareem)";
+            currentUser.username = "رائد تجريبي (أبو كريم)";
+            currentUser.avatar = "https://api.dicebear.com/7.x/bottts/svg?seed=AboKareem";
             currentUser.isPiAuthenticated = true; 
             
             updateUserProfileDOM();
@@ -1849,8 +711,8 @@
             isMicMuted = true;
             const micIcon = document.getElementById('mic-icon');
             const micBtn = document.getElementById('toggle-mic-btn');
-            micIcon.className = "fa-solid fa-microphone-slash text-lg";
-            micBtn.className = "bg-[#211434] border border-[#e5a93b]/40 hover:border-[#e5a93b] text-[#e5a93b] w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-md";
+            if (micIcon) micIcon.className = "fa-solid fa-microphone-slash text-lg";
+            if (micBtn) micBtn.className = "bg-[#211434] border border-[#e5a93b]/40 hover:border-[#e5a93b] text-[#e5a93b] w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-md";
         }
 
         window.toggleMicrophone = function() {
@@ -1859,12 +721,12 @@
             const micBtn = document.getElementById('toggle-mic-btn');
 
             if (isMicMuted) {
-                micIcon.className = "fa-solid fa-microphone-slash text-lg";
-                micBtn.className = "bg-[#211434] border border-[#e5a93b]/40 text-[#e5a93b] w-12 h-12 rounded-full flex items-center justify-center transition-all";
+                if (micIcon) micIcon.className = "fa-solid fa-microphone-slash text-lg";
+                if (micBtn) micBtn.className = "bg-[#211434] border border-[#e5a93b]/40 text-[#e5a93b] w-12 h-12 rounded-full flex items-center justify-center transition-all";
                 document.getElementById('voice-connection-status').innerText = "🟢 متصل الآن بالصوت (المايك مكتوم)";
             } else {
-                micIcon.className = "fa-solid fa-microphone text-lg";
-                micBtn.className = "bg-[#e5a93b] text-[#0d0614] w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-lg shadow-[#e5a93b]/30 animate-pulse";
+                if (micIcon) micIcon.className = "fa-solid fa-microphone text-lg";
+                if (micBtn) micBtn.className = "bg-[#e5a93b] text-[#0d0614] w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-lg shadow-[#e5a93b]/30 animate-pulse";
                 document.getElementById('voice-connection-status').innerText = "🟢 التحدث نشط الآن... المايك مفتوح";
             }
         }
@@ -1919,6 +781,7 @@
             document.getElementById('video-preview-container').classList.add('hidden');
         }
 
+        // دالة جلب ومراقبة المنشورات من Firebase Firestore بشكل حي وتلقائي
         function listenToPostsFromFirebase() {
             const q = query(collection(window.firebaseDb, "posts"), orderBy("timestamp", "desc"));
             
@@ -1931,7 +794,7 @@
                         author: data.author || "رائد مجهول",
                         badge: data.badge || "رائد",
                         badgeColor: data.badgeColor || "bg-purple-900/30 text-purple-300",
-                        avatar: data.avatar || "[https://api.dicebear.com/7.x/bottts/svg?seed=Pioneer](https://api.dicebear.com/7.x/bottts/svg?seed=Pioneer)",
+                        avatar: data.avatar || "https://api.dicebear.com/7.x/bottts/svg?seed=Pioneer",
                         content: data.content || "",
                         image: data.image || null,
                         video: data.video || null,
@@ -1942,6 +805,7 @@
                     });
                 });
                 
+                // الحفاظ على حالة الإعجاب المحلية للمستخدم
                 fetchedPosts.forEach(newPost => {
                     const existingPost = posts.find(p => p.id === newPost.id);
                     if(existingPost) {
@@ -1951,6 +815,7 @@
 
                 posts = fetchedPosts;
 
+                // دمج المنشورات الافتراضية مع السحابية في حال خلو قاعدة البيانات مؤقتاً
                 if (posts.length === 0) {
                     posts = defaultPosts;
                 }
@@ -1959,6 +824,7 @@
             });
         }
 
+        // دالة إنشاء المنشورات السحابية
         window.createNewPost = async function() {
             const postInput = document.getElementById('post-input');
             const textContent = postInput ? postInput.value.trim() : "";
@@ -2013,6 +879,7 @@
             }
         }
 
+        // تحديث دالة التفاعل (اللايكات) لتعمل مع Firebase
         window.toggleLike = async function(postId) {
             const post = posts.find(p => p.id === postId);
             if (!post) return;
@@ -2033,8 +900,10 @@
             }
         }
 
+        // تحديث دالة إرسال التعليقات لتعمل مع Firebase
         window.submitComment = async function(postId) {
             const inputElement = document.getElementById(`comment-input-${postId}`);
+            if (!inputElement) return;
             const text = inputElement.value.trim();
             if (!text) return;
 
@@ -2066,6 +935,7 @@
 
         function renderPosts() {
             const container = document.getElementById('feed-container');
+            if (!container) return;
             container.innerHTML = "";
             
             posts.forEach(post => {
@@ -2332,6 +1202,7 @@
             .catch(err => console.error("فشلت تسوية الدفعة المعلقة القديمة:", err));
         }
 
+        // تشغيل التطبيق بأمان عند جاهزية واجهة المستخدم الكاملة
         window.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>

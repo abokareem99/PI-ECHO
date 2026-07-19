@@ -399,7 +399,7 @@
         </div>
     </div>
 
-    <!-- كود الجافا سكريبت المصحح بالكامل -->
+    <!-- كود الجافا سكريبت المعدل بالكامل -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -802,19 +802,18 @@
             
             if (postBtn) {
                 postBtn.disabled = true;
-                postBtn.innerText = "⏳ جاري رفع الوسائط إلى السحابة...";
+                postBtn.innerText = "⏳ جاري رفع الوسائط...";
                 postBtn.className = "bg-gray-600 text-gray-400 font-bold px-5 py-1.5 rounded-lg text-sm cursor-not-allowed shadow-none";
             }
 
             let finalImageUrl = null;
             let finalVideoUrl = null;
 
-            // إعدادات الرفع المباشر لحساب Cloudinary الخاص بك
             const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/s8z1mgu4/upload";
             const UPLOAD_PRESET = "piecho_preset";
 
             try {
-                // 1. رفع الصورة مباشرة إلى Cloudinary
+                // 1. رفع الصورة إلى Cloudinary
                 if (selectedImageFile) {
                     const formData = new FormData();
                     formData.append("file", selectedImageFile);
@@ -829,7 +828,7 @@
                     }
                 }
 
-                // 2. رفع الفيديو مباشرة إلى Cloudinary وتحسين البث تلقائياً
+                // 2. رفع الفيديو إلى Cloudinary
                 if (selectedVideoFile) {
                     const formData = new FormData();
                     formData.append("file", selectedVideoFile);
@@ -844,10 +843,13 @@
                     }
                 }
 
-                if (postBtn) postBtn.innerText = "✍️ جاري توثيق المنشور في Firestore...";
+                // مسح الحقول وإعادة واجهة المستخدم لحالتها فوراً دون انتظار خوادم الفايربيس البعيدة
+                if (postInput) postInput.value = "";
+                window.removeVideoSelection();
+                window.removeImageSelection();
 
-                // 3. حفظ مستند المنشور داخل Firebase Firestore
-                await addDoc(collection(window.firebaseDb, "posts"), {
+                // 3. إرسال المستند إلى Firestore في الخلفية بدون حظر الواجهة (Non-blocking Asynchronous Write)
+                addDoc(collection(window.firebaseDb, "posts"), {
                     author: currentUser.username,
                     badge: isDemo ? "وضع تجريبي" : "رائد وباني",
                     badgeColor: isDemo ? "bg-yellow-500/10 text-yellow-400" : "bg-green-500/10 text-green-400",
@@ -858,17 +860,15 @@
                     timestamp: serverTimestamp(),
                     likes: 0,
                     comments: []
+                }).catch(err => {
+                    console.error("عطل خفيف في مزامنة الخلفية الفورية لـ Firestore:", err);
                 });
-                
-                if (postInput) postInput.value = "";
-                window.removeVideoSelection();
-                window.removeImageSelection();
-                console.log("تم النشر وحفظ الوسائط في سحابة Cloudinary بنجاح!");
 
             } catch (error) {
                 console.error("حدث خطأ أثناء عملية النشر:", error);
                 alert("عذراً، فشل رفع الميديا ونشر المحتوى. يرجى التحقق من اتصال الشبكة.");
-            } finally { // <-- تم تصحيح الكلمة الإملائية هنا بنجاح!
+            } finally {
+                // إعادة تعيين الزر للعمل الفوري دائماً
                 if (postBtn) {
                     postBtn.disabled = false;
                     postBtn.innerText = "نشر المنشور";

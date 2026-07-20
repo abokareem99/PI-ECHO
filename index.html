@@ -687,20 +687,45 @@
                 return;
             }
 
+            // 🌟 قم بتغيير هذا الرابط إلى رابط موقع Vercel الفعلي الخاص بك (مثال: https://piecho.vercel.app)
+            // لضمان التوجيه المطلق والصحيح لطلبات الـ Web3 وتفادي عزل متصفح Pi
+            const BACKEND_URL = "https://your-project-name.vercel.app"; 
+
             Pi.createPayment({
                 amount: amount,
                 memo: `دعم المنشور للرائد ${activeRecipientName}`,
                 metadata: { postId: activePostIdForTip }
             }, {
-                onReadyForServerApproval: function(paymentId) { console.log("Payment Ready:", paymentId); },
+                onReadyForServerApproval: function(paymentId) { 
+                    console.log("Payment Ready for Approval:", paymentId); 
+                    
+                    // إرسال كود التوثيق إلى السيرفر الخاص بك للموافقة
+                    fetch(`${BACKEND_URL}/api/payments/approve`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ paymentId: paymentId })
+                    }).catch(error => {
+                        console.error("خطأ في الاتصال بالخادم للموافقة:", error);
+                    });
+                },
                 onReadyForServerCompletion: function(paymentId, txid) {
-                    alert(`تم إرسال ${amount} Pi بنجاح! شكراً لدعمك.`);
-                    window.closeSupportModal();
+                    console.log("Payment Ready for Completion:", paymentId, txid);
+                    
+                    // إرسال التوكن ورقم المعاملة لإكمال عملية النقل نهائياً
+                    fetch(`${BACKEND_URL}/api/payments/complete`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ paymentId: paymentId, txid: txid })
+                    }).then(response => {
+                        alert(`تم إرسال ${amount} Pi بنجاح! شكراً لدعمك.`);
+                        window.closeSupportModal();
+                    }).catch(error => {
+                        console.error("خطأ في إكمال المعاملة عبر الخادم:", error);
+                    });
                 },
                 onCancel: function(paymentId) { alert("تم إلغاء عملية الدفع."); },
                 onError: function(error, payment) { 
                     console.error("Payment Error:", error);
-                    // التحقق من نوع الخطأ (إذا كان بسبب انتهاء الوقت)
                     if(error && error.type === 'timeout') {
                         alert("انتهى وقت استجابة الشبكة. يرجى المحاولة مرة أخرى.");
                     } else {

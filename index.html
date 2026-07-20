@@ -335,6 +335,8 @@
             <div>
                 <h3 class="text-xl font-bold text-[#e5a93b]">بوابة دفع Pi Network</h3>
                 <p id="modal-desc" class="text-xs text-gray-400 mt-2 leading-relaxed"></p>
+                <!-- عداد المهلة -->
+                <div id="timer-display" class="mt-3 text-red-500 font-bold text-sm"></div>
             </div>
             <div id="amount-container" class="space-y-2">
                 <label class="text-xs text-gray-400 block">حدد قيمة الدعم بـ Pi:</label>
@@ -371,6 +373,9 @@
 
         window.firebaseAuth = auth;
         window.firebaseDb = db;
+
+        // متغيرات التايمر للمدفوعات
+        let paymentTimerInterval = null;
 
         let currentUser = {
             username: "أبو كريم",
@@ -624,16 +629,40 @@
             }
         }
 
-        // --- دوال الدفع ودعم Pi ---
+        // --- دوال الدفع ودعم Pi مع إدارة المهلة ---
         window.openSupportModal = function(postId, authorName) {
             activePostIdForTip = postId;
             activeRecipientName = authorName;
             document.getElementById('modal-desc').innerText = `أنت على وشك إرسال دعم مباشر بـ Pi إلى: ${authorName}`;
             document.getElementById('payment-modal').classList.remove('hidden');
             document.getElementById('payment-modal').classList.add('flex');
+            
+            // بدء مؤقت المهلة (3 دقائق = 180 ثانية)
+            startPaymentTimer(180);
+        }
+
+        function startPaymentTimer(seconds) {
+            const display = document.getElementById('timer-display');
+            let timeLeft = seconds;
+            
+            if(paymentTimerInterval) clearInterval(paymentTimerInterval);
+            
+            paymentTimerInterval = setInterval(() => {
+                const mins = Math.floor(timeLeft / 60);
+                const secs = timeLeft % 60;
+                display.innerText = `تنتهي مهلة الدفع خلال: ${mins}:${secs < 10 ? '0' : ''}${secs}`;
+                
+                if (timeLeft <= 0) {
+                    clearInterval(paymentTimerInterval);
+                    alert("عذراً، انتهت مهلة الدفع. يرجى المحاولة مرة أخرى.");
+                    window.closeSupportModal();
+                }
+                timeLeft--;
+            }, 1000);
         }
 
         window.closeSupportModal = function() {
+            if(paymentTimerInterval) clearInterval(paymentTimerInterval);
             document.getElementById('payment-modal').classList.add('hidden');
             document.getElementById('payment-modal').classList.remove('flex');
             activePostIdForTip = null;
@@ -669,7 +698,15 @@
                     window.closeSupportModal();
                 },
                 onCancel: function(paymentId) { alert("تم إلغاء عملية الدفع."); },
-                onError: function(error, payment) { alert("حدث خطأ أثناء معالجة الدفع."); }
+                onError: function(error, payment) { 
+                    console.error("Payment Error:", error);
+                    // التحقق من نوع الخطأ (إذا كان بسبب انتهاء الوقت)
+                    if(error && error.type === 'timeout') {
+                        alert("انتهى وقت استجابة الشبكة. يرجى المحاولة مرة أخرى.");
+                    } else {
+                        alert("حدث خطأ أثناء معالجة الدفع: " + (error.message || "غير معروف"));
+                    }
+                }
             });
         }
 

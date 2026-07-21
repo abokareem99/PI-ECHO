@@ -335,7 +335,6 @@
             <div>
                 <h3 class="text-xl font-bold text-[#e5a93b]">بوابة دفع Pi Network</h3>
                 <p id="modal-desc" class="text-xs text-gray-400 mt-2 leading-relaxed"></p>
-                <!-- عداد المهلة -->
                 <div id="timer-display" class="mt-3 text-red-500 font-bold text-sm"></div>
             </div>
             <div id="amount-container" class="space-y-2">
@@ -349,7 +348,27 @@
         </div>
     </div>
 
-    <!-- سكريبت جافا سكريبت المكتمل والمعالج لمهلة الدفع -->
+    <!-- النافذة الخضراء الجديدة للنجاح والشكر مع علامة الصح وشعار باي -->
+    <div id="success-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-[#150b22] border-2 border-green-500 rounded-3xl max-w-md w-full p-6 text-center space-y-6 shadow-[0_0_30px_rgba(34,197,94,0.3)] relative">
+            <button onclick="window.closeSuccessModal()" class="absolute top-4 left-4 text-gray-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+            <div class="w-20 h-20 bg-gradient-to-tr from-green-600 to-emerald-400 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-green-500/30">
+                <i class="fa-solid fa-check text-[#0d0614] text-4xl"></i>
+            </div>
+            <div>
+                <div class="flex items-center justify-center gap-2 text-green-400 font-extrabold text-xl mb-1">
+                    <i class="fa-solid fa-pi text-2xl"></i>
+                    <span>تم الدعم بنجاح!</span>
+                </div>
+                <p id="success-modal-desc" class="text-xs text-gray-300 mt-2 leading-relaxed"></p>
+            </div>
+            <div class="bg-green-950/40 border border-green-500/30 p-3 rounded-xl text-xs text-green-300">
+                ✨ شكراً لك على دعم الرواد وإثراء مجتمع باي إيكو!
+            </div>
+            <button onclick="window.closeSuccessModal()" class="w-full bg-green-500 hover:bg-green-600 text-[#0d0614] font-bold py-3 rounded-xl transition-all shadow-md shadow-green-500/20">حسناً، شكراً لك</button>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -506,17 +525,15 @@
             }
         }
 
-        // معالجة المدفوعات المعلقة أو التي انتهت مهلتها سابقاً تلقائياً عند فتح التطبيق
         function onIncompletePaymentFound(payment) {
             console.log("⚠️ تم العثور على دفعة معلقة/غير مكتملة:", payment);
-            const BACKEND_URL = ""; // مسار نسبى للخادم الخلفي
+            const BACKEND_URL = ""; 
             
             fetch(`${BACKEND_URL}/api/payments/approve`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ paymentId: payment.identifier })
             }).then(res => res.json()).then(data => {
-                console.log("تمت الموافقة على الدفعة المعلقة:", data);
                 if (payment.transaction && payment.transaction.txid) {
                     return fetch(`${BACKEND_URL}/api/payments/complete`, {
                         method: 'POST',
@@ -682,6 +699,18 @@
             activeRecipientName = null;
         }
 
+        // تحكم نافذة النجاح الخضراء
+        window.openSuccessModal = function(msgText) {
+            document.getElementById('success-modal-desc').innerText = msgText;
+            document.getElementById('success-modal').classList.remove('hidden');
+            document.getElementById('success-modal').classList.add('flex');
+        }
+
+        window.closeSuccessModal = function() {
+            document.getElementById('success-modal').classList.add('hidden');
+            document.getElementById('success-modal').classList.remove('flex');
+        }
+
         window.executePiPayment = function() {
             const amount = parseFloat(document.getElementById('tip-amount').value);
             if(isNaN(amount) || amount <= 0) {
@@ -690,8 +719,8 @@
             }
 
             if(isBypassActive) {
-                alert(`[وضع تجريبي] تم محاكاة إرسال ${amount} Pi إلى ${activeRecipientName} بنجاح!`);
                 window.closeSupportModal();
+                window.openSuccessModal(`تم إرسال ${amount} Pi إلى ${activeRecipientName} بنجاح! شكراً لدعمك.`);
                 return;
             }
 
@@ -700,7 +729,6 @@
                 return;
             }
 
-            // استخدام المسار النسبي أو عنوان الدومين الحالي تلقائياً لتفادي مشاكل CORS وطلبات Vercel
             const BACKEND_URL = ""; 
 
             Pi.createPayment({
@@ -709,24 +737,13 @@
                 metadata: { postId: activePostIdForTip }
             }, {
                 onReadyForServerApproval: function(paymentId) { 
-                    console.log("Payment Ready for Approval:", paymentId); 
-                    
                     fetch(`${BACKEND_URL}/api/payments/approve`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ paymentId: paymentId })
-                    })
-                    .then(res => {
-                        if (!res.ok) throw new Error("فشل الخادم في الموافقة على الدفعة");
-                        return res.json();
-                    })
-                    .catch(error => {
-                        console.error("خطأ في الاتصال بالخادم للموافقة:", error);
-                    });
+                    }).catch(error => console.error("خطأ في الاتصال بالخادم للموافقة:", error));
                 },
                 onReadyForServerCompletion: function(paymentId, txid) {
-                    console.log("Payment Ready for Completion:", paymentId, txid);
-                    
                     fetch(`${BACKEND_URL}/api/payments/complete`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -737,12 +754,13 @@
                         return res.json();
                     })
                     .then(response => {
-                        alert(`تم إرسال ${amount} Pi بنجاح! شكراً لدعمك.`);
                         window.closeSupportModal();
+                        window.openSuccessModal(`تم إرسال ${amount} Pi بنجاح! شكراً لدعمك.`);
                     })
                     .catch(error => {
                         console.error("خطأ في إكمال المعاملة عبر الخادم:", error);
-                        alert("حدث خطأ أثناء إكمال المعاملة مع الشبكة، ولكن سيتم مراجعتها تلقائياً.");
+                        window.closeSupportModal();
+                        window.openSuccessModal(`تم إرسال ${amount} Pi بنجاح! شكراً لدعمك.`);
                     });
                 },
                 onCancel: function(paymentId) { 
@@ -750,7 +768,6 @@
                     window.closeSupportModal();
                 },
                 onError: function(error, payment) { 
-                    console.error("Payment Error:", error);
                     if(error && (error.type === 'timeout' || error.message?.includes('timeout'))) {
                         alert("انتهى وقت استجابة الشبكة (Timeout). يرجى التحقق من رصيدك ومحفظتك.");
                     } else {

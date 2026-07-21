@@ -7,7 +7,7 @@
     <link class="rounded-full" rel="icon" type="image/png" href="eagle-logo.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght=300;400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://sdk.minepi.com/pi-sdk.js"></script>
     
@@ -349,7 +349,7 @@
         </div>
     </div>
 
-    <!-- سكريبت جافا سكريبت المكتمل -->
+    <!-- سكريبت جافا سكريبت المكتمل والمعالج لمهلة الدفع -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -374,7 +374,6 @@
         window.firebaseAuth = auth;
         window.firebaseDb = db;
 
-        // متغيرات التايمر للمدفوعات
         let paymentTimerInterval = null;
 
         let currentUser = {
@@ -507,7 +506,26 @@
             }
         }
 
-        function onIncompletePaymentFound(payment) { console.log("Incomplete payment found", payment); }
+        // معالجة المدفوعات المعلقة أو التي انتهت مهلتها سابقاً تلقائياً عند فتح التطبيق
+        function onIncompletePaymentFound(payment) {
+            console.log("⚠️ تم العثور على دفعة معلقة/غير مكتملة:", payment);
+            const BACKEND_URL = ""; // مسار نسبى للخادم الخلفي
+            
+            fetch(`${BACKEND_URL}/api/payments/approve`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ paymentId: payment.identifier })
+            }).then(res => res.json()).then(data => {
+                console.log("تمت الموافقة على الدفعة المعلقة:", data);
+                if (payment.transaction && payment.transaction.txid) {
+                    return fetch(`${BACKEND_URL}/api/payments/complete`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ paymentId: payment.identifier, txid: payment.transaction.txid })
+                    });
+                }
+            }).catch(err => console.error("خطأ في معالجة الدفعة المعلقة:", err));
+        }
 
         window.handleStatusClick = function() {
             if (currentUser.isPiAuthenticated || isBypassActive) {
@@ -524,7 +542,6 @@
             }
         }
 
-        // --- دوال رفع الصور والفيديو ---
         window.triggerImageUpload = function() { document.getElementById('post-image-file').click(); }
         window.previewSelectedImage = function(event) {
             window.removeVideoSelection(); 
@@ -567,7 +584,6 @@
             document.getElementById('video-preview-container').classList.add('hidden');
         }
 
-        // --- دوال الإيموجي ---
         window.toggleEmojiPicker = function(event) {
             event.preventDefault();
             const picker = document.getElementById('emoji-picker');
@@ -579,7 +595,6 @@
             document.getElementById('emoji-picker').classList.add('hidden');
         }
 
-        // --- دوال غرف المحادثة الصوتية ---
         window.openVoiceChatModal = function() {
             document.getElementById('voice-chat-modal').classList.remove('hidden');
             document.getElementById('voice-chat-modal').classList.add('flex');
@@ -629,7 +644,6 @@
             }
         }
 
-        // --- دوال الدفع ودعم Pi مع إدارة المهلة ---
         window.openSupportModal = function(postId, authorName) {
             activePostIdForTip = postId;
             activeRecipientName = authorName;
@@ -637,7 +651,6 @@
             document.getElementById('payment-modal').classList.remove('hidden');
             document.getElementById('payment-modal').classList.add('flex');
             
-            // بدء مؤقت المهلة (3 دقائق = 180 ثانية)
             startPaymentTimer(180);
         }
 
@@ -687,9 +700,8 @@
                 return;
             }
 
-            // 🌟 قم بتغيير هذا الرابط إلى رابط موقع Vercel الفعلي الخاص بك (مثال: https://piecho.vercel.app)
-            // لضمان التوجيه المطلق والصحيح لطلبات الـ Web3 وتفادي عزل متصفح Pi
-            const BACKEND_URL = "https://your-project-name.vercel.app"; 
+            // استخدام المسار النسبي أو عنوان الدومين الحالي تلقائياً لتفادي مشاكل CORS وطلبات Vercel
+            const BACKEND_URL = ""; 
 
             Pi.createPayment({
                 amount: amount,
@@ -699,43 +711,56 @@
                 onReadyForServerApproval: function(paymentId) { 
                     console.log("Payment Ready for Approval:", paymentId); 
                     
-                    // إرسال كود التوثيق إلى السيرفر الخاص بك للموافقة
                     fetch(`${BACKEND_URL}/api/payments/approve`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ paymentId: paymentId })
-                    }).catch(error => {
+                    })
+                    .then(res => {
+                        if (!res.ok) throw new Error("فشل الخادم في الموافقة على الدفعة");
+                        return res.json();
+                    })
+                    .catch(error => {
                         console.error("خطأ في الاتصال بالخادم للموافقة:", error);
                     });
                 },
                 onReadyForServerCompletion: function(paymentId, txid) {
                     console.log("Payment Ready for Completion:", paymentId, txid);
                     
-                    // إرسال التوكن ورقم المعاملة لإكمال عملية النقل نهائياً
                     fetch(`${BACKEND_URL}/api/payments/complete`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ paymentId: paymentId, txid: txid })
-                    }).then(response => {
+                    })
+                    .then(res => {
+                        if (!res.ok) throw new Error("فشل الخادم في إكمال المعاملة");
+                        return res.json();
+                    })
+                    .then(response => {
                         alert(`تم إرسال ${amount} Pi بنجاح! شكراً لدعمك.`);
                         window.closeSupportModal();
-                    }).catch(error => {
+                    })
+                    .catch(error => {
                         console.error("خطأ في إكمال المعاملة عبر الخادم:", error);
+                        alert("حدث خطأ أثناء إكمال المعاملة مع الشبكة، ولكن سيتم مراجعتها تلقائياً.");
                     });
                 },
-                onCancel: function(paymentId) { alert("تم إلغاء عملية الدفع."); },
+                onCancel: function(paymentId) { 
+                    alert("تم إلغاء عملية الدفع."); 
+                    window.closeSupportModal();
+                },
                 onError: function(error, payment) { 
                     console.error("Payment Error:", error);
-                    if(error && error.type === 'timeout') {
-                        alert("انتهى وقت استجابة الشبكة. يرجى المحاولة مرة أخرى.");
+                    if(error && (error.type === 'timeout' || error.message?.includes('timeout'))) {
+                        alert("انتهى وقت استجابة الشبكة (Timeout). يرجى التحقق من رصيدك ومحفظتك.");
                     } else {
                         alert("حدث خطأ أثناء معالجة الدفع: " + (error.message || "غير معروف"));
                     }
+                    window.closeSupportModal();
                 }
             });
         }
 
-        // --- دوال التفاعل والنشر ---
         window.toggleLike = async function(postId) {
             const postIndex = posts.findIndex(p => p.id === postId);
             if(postIndex === -1) return;

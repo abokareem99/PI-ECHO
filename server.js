@@ -23,18 +23,18 @@ if (!PI_API_KEY) {
     console.error("❌ تحذير: لم يتم العثور على مفتاح PI_API_KEY في متغيرات البيئة!");
 }
 
-// دالة مساعدة لتبسيط وتوحيد طلبات Pi API وتجنب التكرار
+// دالة مساعدة لتبسيط وتوحيد طلبات Pi API مع مهلة زمنية محسنة
 async function handlePiRequest(endpoint, payload) {
     return await axios.post(`${PI_API_URL}/${endpoint}`, payload, {
         headers: {
             'Authorization': `Key ${PI_API_KEY}`,
             'Content-Type': 'application/json'
         },
-        timeout: 20000 // مهلة 20 ثانية لتجنب تعليق Vercel Serverless
+        timeout: 25000 // رفع المهلة إلى 25 ثانية لتفادي قطع الاتصال المبكر في Vercel
     });
 }
 
-// 2. نقطة الموافقة على الدفعة (Approve Payment) - تدعم المسار المباشر والفرعي لتجنب مشاكل Vercel
+// 2. نقطة الموافقة على الدفعة (Approve Payment) مع معالجة حالة الموافقة المسبقة
 app.post(['/api/payments/approve', '/payments/approve'], async (req, res) => {
     const { paymentId } = req.body;
 
@@ -49,8 +49,16 @@ app.post(['/api/payments/approve', '/payments/approve'], async (req, res) => {
 
     } catch (error) {
         if (error.response) {
-            console.error("فشل الموافقة في خوادم باي:", JSON.stringify(error.response.data));
-            return res.status(error.response.status).json(error.response.data);
+            const errorData = error.response.data;
+            
+            // معالجة ذكية: إذا كانت الدفعة موافقاً عليها مسبقاً، نمررها كنجاح لمنع خطأ التايمر
+            if (errorData && (errorData.error === "already_approved" || errorData.message?.includes("already approved"))) {
+                console.log(`⚠️ الدفعة ${paymentId} موافق عليها مسبقاً على الشبكة. تم تمريرها بنجاح.`);
+                return res.status(200).json({ success: true, message: "Payment already approved successfully." });
+            }
+
+            console.error("فشل الموافقة في خوادم باي:", JSON.stringify(errorData));
+            return res.status(error.response.status).json(errorData);
         }
         console.error("خطأ داخلي أثناء الموافقة:", error.message);
         return res.status(500).json({ error: 'حدث خطأ في الخادم الخلفي: ' + error.message });
@@ -74,8 +82,8 @@ app.post(['/api/payments/complete', '/payments/complete'], async (req, res) => {
         if (error.response) {
             const errorData = error.response.data;
             
-            // 💡 معالجة ذكية: إذا كانت الدفعة مكتملة بالفعل في خوادم باي، نمررها كعملية ناجحة
-            if (errorData && errorData.error === "already_completed") {
+            // معالجة ذكية: إذا كانت الدفعة مكتملة بالفعل في خوادم باي، نمررها كعملية ناجحة
+            if (errorData && (errorData.error === "already_completed" || errorData.message?.includes("already completed"))) {
                 console.log(`⚠️ الدفعة ${paymentId} مكتملة بالفعل على الشبكة. تم تمريرها بنجاح.`);
                 return res.status(200).json({ success: true, message: "Payment already completed successfully." });
             }

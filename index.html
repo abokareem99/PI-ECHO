@@ -196,7 +196,6 @@
                             <button onclick="window.toggleEmojiPicker(event)" class="p-2 hover:bg-[#211434] hover:text-[#e5a93b] rounded-lg transition-colors" title="إضافة شعارات ورموز تعبيرية">
                                 <i class="fa-regular fa-face-smile text-lg"></i>
                             </button>
-                            <!-- قائمة الرموز التعبيرية المحدثة مع شعار باي وشعار التطبيق (الصقر) -->
                             <div id="emoji-picker" class="hidden absolute right-0 top-10 z-50 bg-[#150b22] border-2 border-[#e5a93b] p-3 rounded-2xl grid grid-cols-4 gap-2 shadow-2xl w-48">
                                 <button onclick="window.appendEmoji('🥧')" class="hover:bg-[#211434] p-1.5 rounded text-lg transition-colors" title="شعار باي">🥧</button>
                                 <button onclick="window.appendEmoji('🦅')" class="hover:bg-[#211434] p-1.5 rounded text-lg transition-colors" title="شعار التطبيق (الصقر)">🦅</button>
@@ -583,7 +582,6 @@
             }
         }
 
-        // دوال نافذة دعوة صديق الجديدة
         window.openInviteModal = function() {
             const modal = document.getElementById('invite-modal');
             if (modal) {

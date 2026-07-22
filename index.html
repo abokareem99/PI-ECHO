@@ -490,9 +490,9 @@
             <div class="flex-1 flex flex-col md:flex-row overflow-hidden bg-[#0d0714]">
                 <!-- قائمة المحادثات / جهات الاتصال -->
                 <div class="w-full md:w-1/3 bg-[#160d24] border-l border-[#e5a93b]/20 p-3 overflow-y-auto space-y-2">
-                    <h4 class="text-[11px] font-bold text-[#e5a93b] mb-2 px-1">الرواد المتاحون للمراسلة:</h4>
+                    <h4 class="text-[11px] font-bold text-[#e5a93b] mb-2 px-1">الرواد المتصلون للمراسلة:</h4>
                     <div id="pioneers-list-container" class="space-y-1.5">
-                        <!-- يُعبأ ديناميكياً -->
+                        <!-- يُعبأ ديناميكياً من قاعدة البيانات -->
                     </div>
                 </div>
 
@@ -641,6 +641,7 @@
         // متغيرات الدردشة الخاصة
         let activePrivateRecipient = null;
         let privateChatUnsubscribe = null;
+        let usersUnsubscribe = null;
 
         function safeGetItem(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
         function safeSetItem(key, value) { try { localStorage.setItem(key, value); } catch (e) {} }
@@ -658,6 +659,7 @@
             updateUserProfileDOM();
             listenToPostsFromFirebase();
             startPiSDKInitialization();
+            saveProfileToFirebase(currentUser);
         }
 
         async function saveProfileToFirebase(userObj) {
@@ -1135,7 +1137,7 @@
         }
 
         // ==========================================
-        // الوظائف البرمجية للدردشة الخاصة (Private Chat)
+        // الوظائف البرمجية للدردشة الخاصة (Private Chat) ومعالجة المتصلين
         // ==========================================
         window.openPrivateChatModal = function() {
             const modal = document.getElementById('private-chat-modal');
@@ -1156,33 +1158,60 @@
                 privateChatUnsubscribe();
                 privateChatUnsubscribe = null;
             }
+            if (usersUnsubscribe) {
+                usersUnsubscribe();
+                usersUnsubscribe = null;
+            }
         }
 
         function renderPioneersListForDM() {
             const listContainer = document.getElementById('pioneers-list-container');
             if (!listContainer) return;
 
-            // قائمة رواد افتراضية أو مستخرجة من المنشورات لضمان وجود أشخاص للمراسلة
-            const defaultPioneers = [
-                { name: "أحمد السوداني", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Ahmed", role: "مستثمر ومحلل عملات" },
-                { name: "سارة محمد", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah", role: "مطورة واجهات 3D" },
-                { name: "خالد عمر", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Khaled", role: "رائد وباني شبكة" },
-                { name: "فاطمة علي", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Fatima", role: "مختصة مدفوعات Pi" }
-            ];
+            if (usersUnsubscribe) {
+                usersUnsubscribe();
+            }
 
-            listContainer.innerHTML = "";
-            defaultPioneers.forEach(pioneer => {
-                if (pioneer.name === currentUser.username) return; // لا تظهر نفسك
-                const itemHTML = `
-                    <div onclick="window.openPrivateChatWith('${pioneer.name}', '${pioneer.avatar}')" class="p-2.5 bg-[#1b0f2e] hover:bg-[#24153b] border border-[#e5a93b]/20 hover:border-[#e5a93b] rounded-xl cursor-pointer transition-all flex items-center gap-2.5">
-                        <img src="${pioneer.avatar}" class="w-8 h-8 rounded-full border border-[#e5a93b]/40 object-cover">
-                        <div class="overflow-hidden">
-                            <h5 class="font-bold text-xs text-gray-200 truncate">${pioneer.name}</h5>
-                            <p class="text-[9px] text-gray-400 truncate">${pioneer.role}</p>
+            const q = query(collection(db, "users"));
+            usersUnsubscribe = onSnapshot(q, (snapshot) => {
+                let pioneers = [];
+                snapshot.forEach((docSnap) => {
+                    const userData = docSnap.data();
+                    if (userData.username && userData.username !== currentUser.username) {
+                        pioneers.push({
+                            name: userData.username,
+                            avatar: userData.avatar || "https://api.dicebear.com/7.x/bottts/svg?seed=" + userData.username,
+                            role: userData.bio ? userData.bio.substring(0, 30) + '...' : "رائد متصل الآن"
+                        });
+                    }
+                });
+
+                if (pioneers.length === 0) {
+                    const defaultPioneers = [
+                        { name: "أحمد السوداني", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Ahmed", role: "مستثمر ومحلل عملات" },
+                        { name: "سارة محمد", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah", role: "مطورة واجهات 3D" },
+                        { name: "خالد عمر", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Khaled", role: "رائد وباني شبكة" },
+                        { name: "فاطمة علي", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Fatima", role: "مختصة مدفوعات Pi" }
+                    ];
+                    pioneers = defaultPioneers.filter(p => p.name !== currentUser.username);
+                }
+
+                listContainer.innerHTML = "";
+                pioneers.forEach(pioneer => {
+                    const itemHTML = `
+                        <div onclick="window.openPrivateChatWith('${pioneer.name}', '${pioneer.avatar}')" class="p-2.5 bg-[#1b0f2e] hover:bg-[#24153b] border border-[#e5a93b]/20 hover:border-[#e5a93b] rounded-xl cursor-pointer transition-all flex items-center gap-2.5">
+                            <img src="${pioneer.avatar}" class="w-8 h-8 rounded-full border border-[#e5a93b]/40 object-cover">
+                            <div class="overflow-hidden flex-1">
+                                <div class="flex items-center justify-between">
+                                    <h5 class="font-bold text-xs text-gray-200 truncate">${pioneer.name}</h5>
+                                    <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse" title="متصل الآن"></span>
+                                </div>
+                                <p class="text-[9px] text-gray-400 truncate">${pioneer.role}</p>
+                            </div>
                         </div>
-                    </div>
-                `;
-                listContainer.insertAdjacentHTML('beforeend', itemHTML);
+                    `;
+                    listContainer.insertAdjacentHTML('beforeend', itemHTML);
+                });
             });
         }
 
@@ -1210,7 +1239,6 @@
                 privateChatUnsubscribe = null;
             }
 
-            // توليد معرف فريد وثابت للمحادثة بين الطرفين (بغض النظر عن الترتيب)
             const chatId = [currentUser.username, recipientName].sort().join('_');
             const q = query(collection(db, "private_messages"), orderBy("timestamp", "asc"));
 
@@ -1674,29 +1702,32 @@
 
                     const response = await fetch("https://api.cloudinary.com/v1_1/s8z1mgu4/image/upload", { method: "POST", body: formData });
                     const data = await response.json();
-                    if (data.secure_url) finalAvatarUrl = data.secure_url;
+                    if (data.secure_url) finalAvatarUrl = data.secure_url.replace("/upload/", "/upload/q_auto,f_auto/");
+                    else throw new Error("فشل رفع الصورة الشخصية");
                 }
 
                 currentUser.username = newName;
-                currentUser.bio = newBio;
                 currentUser.avatar = finalAvatarUrl;
-                
+                currentUser.bio = newBio;
+
                 updateUserProfileDOM();
                 safeSetItem('piecho_user_v2', JSON.stringify(currentUser));
                 await saveProfileToFirebase(currentUser);
+
                 window.closeEditProfileModal();
+                alert("تم تحديث الملف الشخصي وحفظه بنجاح! ✨");
             } catch (error) {
-                alert("حدث خطأ أثناء الرفع.");
+                console.error("Profile save error:", error);
+                alert("فشل حفظ الملف الشخصي. تحقق من اتصال الإنترنت.");
             } finally {
-                if (saveBtn) { saveBtn.disabled = false; saveBtn.innerText = "حفظ التغييرات"; }
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.innerText = "حفظ التغييرات";
+                }
             }
         }
 
-        if (document.readyState === "loading") {
-            window.addEventListener('DOMContentLoaded', initApp);
-        } else {
-            initApp();
-        }
+        window.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
 </html>

@@ -44,7 +44,7 @@
             background: linear-gradient(135deg, #1b0f2e, #130a21); border: 2px solid #e5a93b; border-radius: 20px;
             box-shadow: 0 4px 25px rgba(229, 169, 59, 0.25);
             padding-top: 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom));
-            display: flex; justify-around: space-around; align-items: center;
+            display: flex; justify-content: space-around; align-items: center;
         }
     </style>
 </head>
@@ -168,7 +168,7 @@
         <main class="col-span-1 md:col-span-2 space-y-6">
             <div class="bg-gradient-to-b from-[#1b0f2e] to-[#130a21] border-2 border-[#e5a93b] shadow-[0_0_15px_rgba(229,169,59,0.15)] rounded-2xl p-4">
                 <div class="flex gap-3">
-                    <img id="feed-post-avatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=AboKareem" alt="User Avatar" class="w-10 h-10 rounded-full border border-[#e5a93b]/40 object-cover">
+                    <img id="feed-post-avatar" src="https://api.dicebear.com/7.x/bottts?seed=AboKareem" alt="User Avatar" class="w-10 h-10 rounded-full border border-[#e5a93b]/40 object-cover">
                     <div class="flex-1">
                         <textarea id="post-input" placeholder="ماذا يدور في ذهنك اليوم يا رائد؟" rows="3" class="w-full bg-[#130a21] rounded-xl p-3 text-sm text-gray-200 placeholder-gray-500 border border-[#e5a93b]/30 focus:border-[#e5a93b] focus:outline-none resize-none transition-all"></textarea>
                         
@@ -591,7 +591,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, orderBy, where, onSnapshot, serverTimestamp, doc, updateDoc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, updateDoc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
         import { getStorage } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-storage.js";
 
         const firebaseConfig = {
@@ -638,7 +638,7 @@
         let isConnectingVoice = false;
         let searchQuery = "";
 
-        // متغيرات الدردشة الخاصة المتطورة
+        // متغيرات الدردشة الخاصة
         let activePrivateRecipient = null;
         let privateChatUnsubscribe = null;
         let usersUnsubscribe = null;
@@ -1136,9 +1136,9 @@
             });
         }
 
-        // =========================================================================
-        // ✨ نظام الرسائل الخاصة المحسّن بالكامل (تم حل مشكلة التجمد والإنهاء) ✨
-        // =========================================================================
+        // ==========================================
+        // الوظائف البرمجية للدردشة الخاصة (Private Chat) ومعالجة المتصلين
+        // ==========================================
         window.openPrivateChatModal = function() {
             const modal = document.getElementById('private-chat-modal');
             if (modal) {
@@ -1162,7 +1162,6 @@
                 usersUnsubscribe();
                 usersUnsubscribe = null;
             }
-            activePrivateRecipient = null;
         }
 
         function renderPioneersListForDM() {
@@ -1199,10 +1198,8 @@
 
                 listContainer.innerHTML = "";
                 pioneers.forEach(pioneer => {
-                    const isActive = pioneer.name === activePrivateRecipient;
                     const itemHTML = `
-                        <div data-pioneer="${pioneer.name}" onclick="window.openPrivateChatWith('${pioneer.name}', '${pioneer.avatar}')" 
-                             class="p-2.5 ${isActive ? 'bg-[#24153b] border-[#e5a93b]' : 'bg-[#1b0f2e] border-[#e5a93b]/20'} hover:bg-[#24153b] border hover:border-[#e5a93b] rounded-xl cursor-pointer transition-all flex items-center gap-2.5 shadow-sm">
+                        <div onclick="window.openPrivateChatWith('${pioneer.name}', '${pioneer.avatar}')" class="p-2.5 bg-[#1b0f2e] hover:bg-[#24153b] border border-[#e5a93b]/20 hover:border-[#e5a93b] rounded-xl cursor-pointer transition-all flex items-center gap-2.5">
                             <img src="${pioneer.avatar}" class="w-8 h-8 rounded-full border border-[#e5a93b]/40 object-cover">
                             <div class="overflow-hidden flex-1">
                                 <div class="flex items-center justify-between">
@@ -1219,50 +1216,21 @@
         }
 
         window.openPrivateChatWith = function(recipientName, recipientAvatar = "https://api.dicebear.com/7.x/bottts/svg?seed=Pioneer") {
-            const modal = document.getElementById('private-chat-modal');
-            if (modal && modal.classList.contains('hidden')) {
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-                renderPioneersListForDM();
-            }
-
+            window.openPrivateChatModal();
             activePrivateRecipient = recipientName;
 
-            const nameEl = document.getElementById('active-dm-name');
-            const avatarEl = document.getElementById('active-dm-avatar');
-            const subtitleEl = document.getElementById('private-chat-subtitle');
+            document.getElementById('active-dm-name').innerText = recipientName;
+            document.getElementById('active-dm-avatar').src = recipientAvatar;
+            document.getElementById('private-chat-subtitle').innerText = `المحادثة الخاصة مع: ${recipientName}`;
+            
             const chatInput = document.getElementById('private-chat-input');
             const sendBtn = document.getElementById('send-private-btn');
-
-            if (nameEl) nameEl.innerText = recipientName;
-            if (avatarEl) avatarEl.src = recipientAvatar;
-            if (subtitleEl) subtitleEl.innerText = `المحادثة الخاصة مع: ${recipientName}`;
             
-            if (chatInput) {
-                chatInput.disabled = false;
-                chatInput.placeholder = `اكتب رسالة إلى ${recipientName}...`;
-            }
-            if (sendBtn) {
-                sendBtn.disabled = false;
-                sendBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                sendBtn.classList.add('opacity-100');
-            }
+            chatInput.disabled = false;
+            sendBtn.disabled = false;
+            sendBtn.classList.remove('opacity-50', 'cursor-not-allowed');
 
-            highlightActivePioneerInList(recipientName);
             listenToPrivateMessages(recipientName);
-        }
-
-        function highlightActivePioneerInList(recipientName) {
-            const items = document.querySelectorAll('#pioneers-list-container > div');
-            items.forEach(item => {
-                if (item.getAttribute('data-pioneer') === recipientName) {
-                    item.classList.add('border-[#e5a93b]', 'bg-[#24153b]', 'shadow-md');
-                    item.classList.remove('border-[#e5a93b]/20', 'bg-[#1b0f2e]');
-                } else {
-                    item.classList.remove('border-[#e5a93b]', 'bg-[#24153b]', 'shadow-md');
-                    item.classList.add('border-[#e5a93b]/20', 'bg-[#1b0f2e]');
-                }
-            });
         }
 
         function listenToPrivateMessages(recipientName) {
@@ -1272,78 +1240,56 @@
             }
 
             const chatId = [currentUser.username, recipientName].sort().join('_');
-            
-            // الفلترة المباشرة باستخدام where تحل مشكلة الثقل وتضمن أداء وسرعة عالية
-            const q = query(collection(db, "private_messages"), where("chatId", "==", chatId));
+            const q = query(collection(db, "private_messages"), orderBy("timestamp", "asc"));
 
             privateChatUnsubscribe = onSnapshot(q, (snapshot) => {
                 const container = document.getElementById('private-messages-container');
                 if (!container) return;
-                
-                let msgDocs = [];
-                snapshot.forEach((docSnap) => {
-                    msgDocs.push({ id: docSnap.id, ...docSnap.data() });
-                });
-
-                // ترتيب الرسائل زمنياً في الذاكرة بأمان
-                msgDocs.sort((a, b) => {
-                    const tA = a.timestamp?.seconds || (Date.now() / 1000);
-                    const tB = b.timestamp?.seconds || (Date.now() / 1000);
-                    return tA - tB;
-                });
-
                 container.innerHTML = "";
 
-                if (msgDocs.length === 0) {
-                    container.innerHTML = `<div class="text-center py-16 text-gray-500 text-xs">لا توجد رسائل سابقة مع ${recipientName}. ابدأ المحادثة الآن!</div>`;
-                    return;
-                }
+                let hasMessages = false;
+                snapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    if (data.chatId === chatId) {
+                        hasMessages = true;
+                        const isMe = data.sender === currentUser.username;
+                        let timeStr = "الآن";
+                        if (data.timestamp && typeof data.timestamp.seconds !== 'undefined') {
+                            timeStr = new Date(data.timestamp.seconds * 1000).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+                        }
 
-                msgDocs.forEach((data) => {
-                    const isMe = data.sender === currentUser.username;
-                    let timeStr = "الآن";
-                    if (data.timestamp && typeof data.timestamp.seconds !== 'undefined') {
-                        timeStr = new Date(data.timestamp.seconds * 1000).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
-                    }
-
-                    const msgHTML = `
-                        <div class="flex items-start gap-2.5 ${isMe ? 'flex-row-reverse' : ''}">
-                            <img src="${isMe ? currentUser.avatar : (document.getElementById('active-dm-avatar')?.src || 'https://api.dicebear.com/7.x/bottts/svg?seed=Pioneer')}" class="w-7 h-7 rounded-full border border-[#e5a93b]/40 object-cover">
-                            <div class="max-w-[75%] ${isMe ? 'bg-[#3b245e] border-[#e5a93b]/60' : 'bg-[#1b0f2e] border-[#e5a93b]/20'} border p-3 rounded-2xl space-y-1 shadow-sm">
-                                <div class="flex items-center justify-between gap-3">
-                                    <span class="text-[9px] font-bold ${isMe ? 'text-amber-300' : 'text-[#e5a93b]'}">${data.sender}</span>
-                                    <span class="text-[8px] text-gray-400">${timeStr}</span>
+                        const msgHTML = `
+                            <div class="flex items-start gap-2.5 ${isMe ? 'flex-row-reverse' : ''}">
+                                <img src="${isMe ? currentUser.avatar : document.getElementById('active-dm-avatar').src}" class="w-7 h-7 rounded-full border border-[#e5a93b]/40 object-cover">
+                                <div class="max-w-[75%] bg-[#1b0f2e] border ${isMe ? 'border-[#e5a93b]/50' : 'border-[#e5a93b]/20'} p-3 rounded-2xl space-y-1">
+                                    <div class="flex items-center justify-between gap-3">
+                                        <span class="text-[9px] font-bold text-[#e5a93b]">${data.sender}</span>
+                                        <span class="text-[8px] text-gray-500">${timeStr}</span>
+                                    </div>
+                                    <p class="text-xs text-gray-200 leading-relaxed whitespace-pre-line">${data.content}</p>
                                 </div>
-                                <p class="text-xs text-gray-100 leading-relaxed whitespace-pre-line break-words">${data.content}</p>
                             </div>
-                        </div>
-                    `;
-                    container.insertAdjacentHTML('beforeend', msgHTML);
+                        `;
+                        container.insertAdjacentHTML('beforeend', msgHTML);
+                    }
                 });
 
-                // تمرير تلقائي أملس لآخر رسالة
-                setTimeout(() => {
+                if (!hasMessages) {
+                    container.innerHTML = `<div class="text-center py-16 text-gray-500 text-xs">لا توجد رسائل سابقة مع ${recipientName}. ابدأ المحادثة الآن!</div>`;
+                } else {
                     container.scrollTop = container.scrollHeight;
-                }, 50);
-            }, (error) => {
-                console.error("خطأ في استقبال الرسائل الخاصة:", error);
+                }
             });
         }
 
         window.sendPrivateMessage = async function() {
             if (!activePrivateRecipient) return;
             const input = document.getElementById('private-chat-input');
-            const sendBtn = document.getElementById('send-private-btn');
-            if (!input || !sendBtn) return;
-
+            if (!input) return;
             const text = input.value.trim();
             if (!text) return;
 
             const chatId = [currentUser.username, activePrivateRecipient].sort().join('_');
-
-            // قفل الزر لتفادي التكرار والتجميد
-            input.disabled = true;
-            sendBtn.disabled = true;
 
             try {
                 await addDoc(collection(db, "private_messages"), {
@@ -1357,13 +1303,9 @@
             } catch (error) {
                 console.error("خطأ في إرسال الرسالة الخاصة:", error);
                 alert("فشل إرسال الرسالة الخاصة، تحقق من الاتصال.");
-            } finally {
-                input.disabled = false;
-                sendBtn.disabled = false;
-                input.focus();
             }
         }
-        // =========================================================================
+        // ==========================================
 
         window.openSupportModal = function(postId, authorName) {
             activePostIdForTip = postId;
@@ -1788,4 +1730,4 @@
         window.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
-</html>
+</html> 

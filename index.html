@@ -108,9 +108,9 @@
                     <i class="fa-regular fa-compass text-base"></i>
                     <span>استكشف</span>
                 </a>
-                <a href="javascript:void(0)" onclick="window.toggleMobileSidebar(); alert('صندوق الرسائل وغرف المحادثة المباشرة قيد التجهيز للتحديث القادم...');" class="flex items-center gap-3 px-4 py-2.5 text-gray-300 hover:bg-[#1b140b] hover:text-[#e5a93b] transition-all">
+                <a href="javascript:void(0)" onclick="window.toggleMobileSidebar(); window.openChatModal();" class="flex items-center gap-3 px-4 py-2.5 text-gray-300 hover:bg-[#1b140b] hover:text-[#e5a93b] transition-all">
                     <i class="fa-regular fa-message text-base"></i>
-                    <span>الالتحاق بالمحادثات</span>
+                    <span>الرسائل</span>
                 </a>
                 <hr class="border-[#e5a93b]/20 my-3">
                 <button onclick="window.openInviteModal(); window.toggleMobileSidebar();" class="w-full bg-gradient-to-r from-[#e5a93b] to-yellow-500 text-[#080604] font-bold py-2.5 px-4 rounded-xl shadow-md hover:from-yellow-500 hover:to-yellow-600 transition-all text-xs">
@@ -148,7 +148,7 @@
                 <a href="javascript:void(0)" onclick="alert('قسم استكشف قيد التطوير والربط البرمجي حالياً!');" class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:bg-[#1b140b] hover:text-[#e5a93b] transition-all">
                     <i class="fa-regular fa-compass text-lg"></i><span>استكشف</span>
                 </a>
-                <a href="javascript:void(0)" onclick="alert('صندوق الرسائل وغرف المحادثة المباشرة قيد التجهيز للتحديث القادم...');" class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:bg-[#1b140b] hover:text-[#e5a93b] transition-all">
+                <a href="javascript:void(0)" onclick="window.openChatModal()" class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:bg-[#1b140b] hover:text-[#e5a93b] transition-all">
                     <i class="fa-regular fa-message text-lg"></i><span>الرسائل</span>
                 </a>
                 <hr class="border-[#e5a93b]/30 my-3">
@@ -262,7 +262,7 @@
         <a href="javascript:void(0)" class="text-[#e5a93b]"><i class="fa-solid fa-house"></i></a>
         <a href="javascript:void(0)" onclick="window.openVoiceChatModal()" class="hover:text-[#e5a93b]"><i class="fa-solid fa-microphone-lines"></i></a>
         <a href="javascript:void(0)" class="hover:text-[#e5a93b]" onclick="window.openEditProfileModal()"><i class="fa-regular fa-user"></i></a>
-        <a href="javascript:void(0)" class="hover:text-[#e5a93b]" onclick="alert('صندوق الرسائل والمحادثة المباشرة قيد التهيئة والتفعيل...');"><i class="fa-regular fa-message"></i></a>
+        <a href="javascript:void(0)" class="hover:text-[#e5a93b]" onclick="window.openChatModal()"><i class="fa-regular fa-message"></i></a>
     </footer>
 
     <!-- نافذة دعوة صديق الجديدة -->
@@ -328,6 +328,41 @@
                     <i id="mic-icon" class="fa-solid fa-microphone-slash text-lg"></i>
                 </button>
                 <button onclick="window.closeVoiceChatModal()" class="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2.5 rounded-full text-sm transition-all shadow-md">مغادرة الغرفة</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة صندوق الرسائل والمحادثة المباشرة (Step 1) -->
+    <div id="chat-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-[#120e07] border-2 border-[#e5a93b] rounded-3xl max-w-lg w-full h-[80vh] flex flex-col shadow-[0_0_30px_rgba(229,169,59,0.3)] relative overflow-hidden">
+            
+            <!-- رأس نافذة المحادثة -->
+            <div class="p-4 bg-[#1a130a] border-b border-[#e5a93b]/30 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-tr from-[#e5a93b] to-yellow-500 rounded-full flex items-center justify-center text-[#080604] font-bold">
+                        <i class="fa-regular fa-message text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm text-[#e5a93b]">الدردشة العامة للرواد 💬</h3>
+                        <span class="text-[10px] text-green-400 font-semibold flex items-center gap-1">
+                            <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> متصل الآن
+                        </span>
+                    </div>
+                </div>
+                <button onclick="window.closeChatModal()" class="text-gray-400 hover:text-white text-lg p-2"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <!-- صندوق عرض الرسائل -->
+            <div id="chat-messages-container" class="flex-1 p-4 overflow-y-auto space-y-3 bg-[#0c0905]">
+                <!-- يتم تعبئة الرسائل برمجياً هنا -->
+            </div>
+
+            <!-- شريط إرسال الرسالة -->
+            <div class="p-3 bg-[#1a130a] border-t border-[#e5a93b]/30 flex gap-2 items-center">
+                <input type="text" id="chat-input" placeholder="اكتب رسالتك إلى الرواد..." class="flex-1 bg-[#120e07] border border-[#e5a93b]/30 rounded-xl px-4 py-2.5 text-xs text-gray-200 outline-none focus:border-[#e5a93b]" onkeypress="if(event.key === 'Enter') window.sendChatMessage()">
+                <button onclick="window.sendChatMessage()" class="bg-[#e5a93b] hover:bg-yellow-500 text-[#080604] font-bold px-5 py-2.5 rounded-xl text-xs transition-all shadow-md">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
             </div>
         </div>
     </div>
@@ -717,6 +752,80 @@
                 micBtn.className = "bg-[#e5a93b] text-[#080604] w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-md shadow-[#e5a93b]/30";
                 micIcon.className = "fa-solid fa-microphone text-lg";
             }
+        }
+
+        // دوال التحكم بالدردشة النصية (Step 3)
+        window.openChatModal = function() {
+            const modal = document.getElementById('chat-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                listenToChatMessages();
+            }
+        }
+
+        window.closeChatModal = function() {
+            const modal = document.getElementById('chat-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+        window.sendChatMessage = async function() {
+            const input = document.getElementById('chat-input');
+            if (!input) return;
+            const text = input.value.trim();
+            if (!text) return;
+
+            try {
+                await addDoc(collection(window.firebaseDb, "chat_messages"), {
+                    author: currentUser.username,
+                    avatar: currentUser.avatar,
+                    content: text,
+                    timestamp: serverTimestamp()
+                });
+                input.value = "";
+            } catch (error) {
+                console.error("خطأ في إرسال الرسالة:", error);
+                alert("فشل إرسال الرسالة، تحقق من الاتصال.");
+            }
+        }
+
+        let chatUnsubscribe = null;
+        function listenToChatMessages() {
+            if (chatUnsubscribe) return; 
+            const q = query(collection(window.firebaseDb, "chat_messages"), orderBy("timestamp", "asc"));
+            
+            chatUnsubscribe = onSnapshot(q, (snapshot) => {
+                const container = document.getElementById('chat-messages-container');
+                if (!container) return;
+                container.innerHTML = "";
+
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const isMe = data.author === currentUser.username;
+                    let timeStr = "الآن";
+                    if (data.timestamp && typeof data.timestamp.seconds !== 'undefined') {
+                        timeStr = new Date(data.timestamp.seconds * 1000).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+                    }
+
+                    const messageHTML = `
+                        <div class="flex items-start gap-2.5 ${isMe ? 'flex-row-reverse' : ''}">
+                            <img src="${data.avatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=Pioneer'}" class="w-8 h-8 rounded-full border border-[#e5a93b]/40 object-cover">
+                            <div class="max-w-[75%] bg-[#1b140b] border ${isMe ? 'border-[#e5a93b]/50' : 'border-[#e5a93b]/20'} p-3 rounded-2xl space-y-1">
+                                <div class="flex items-center justify-between gap-3">
+                                    <span class="text-[10px] font-bold text-[#e5a93b]">${data.author}</span>
+                                    <span class="text-[9px] text-gray-500">${timeStr}</span>
+                                </div>
+                                <p class="text-xs text-gray-200 leading-relaxed whitespace-pre-line">${data.content}</p>
+                            </div>
+                        </div>
+                    `;
+                    container.insertAdjacentHTML('beforeend', messageHTML);
+                });
+                container.scrollTop = container.scrollHeight;
+            });
         }
 
         window.openSupportModal = function(postId, authorName) {

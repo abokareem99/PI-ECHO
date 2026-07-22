@@ -104,7 +104,7 @@
                     <i class="fa-solid fa-house text-base"></i>
                     <span>الرئيسية</span>
                 </a>
-                <a href="javascript:void(0)" onclick="window.toggleMobileSidebar(); alert('قسم استكشف قيد التطوير والربط البرمجي حالياً!');" class="flex items-center gap-3 px-4 py-2.5 text-gray-300 hover:bg-[#1b140b] hover:text-[#e5a93b] transition-all">
+                <a href="javascript:void(0)" onclick="window.toggleMobileSidebar(); window.openExploreModal();" class="flex items-center gap-3 px-4 py-2.5 text-gray-300 hover:bg-[#1b140b] hover:text-[#e5a93b] transition-all">
                     <i class="fa-regular fa-compass text-base"></i>
                     <span>استكشف</span>
                 </a>
@@ -145,7 +145,7 @@
                 <a href="javascript:void(0)" class="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-l from-[#664b12]/40 to-transparent text-[#e5a93b] font-semibold border-r-4 border-[#e5a93b]">
                     <i class="fa-solid fa-house text-lg"></i><span>الرئيسية</span>
                 </a>
-                <a href="javascript:void(0)" onclick="alert('قسم استكشف قيد التطوير والربط البرمجي حالياً!');" class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:bg-[#1b140b] hover:text-[#e5a93b] transition-all">
+                <a href="javascript:void(0)" onclick="window.openExploreModal();" class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:bg-[#1b140b] hover:text-[#e5a93b] transition-all">
                     <i class="fa-regular fa-compass text-lg"></i><span>استكشف</span>
                 </a>
                 <a href="javascript:void(0)" onclick="window.openChatModal()" class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:bg-[#1b140b] hover:text-[#e5a93b] transition-all">
@@ -248,6 +248,98 @@
         </aside>
     </div>
 
+    <!-- نافذة استكشف المتقدمة -->
+    <div id="explore-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-[#120e07] border-2 border-[#e5a93b] rounded-3xl max-w-2xl w-full h-[85vh] flex flex-col shadow-[0_0_30px_rgba(229,169,59,0.3)] relative overflow-hidden">
+            <!-- رأس النافذة -->
+            <div class="p-4 bg-[#1a130a] border-b border-[#e5a93b]/30 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-tr from-[#e5a93b] to-yellow-500 rounded-full flex items-center justify-center text-[#080604] font-bold">
+                        <i class="fa-regular fa-compass text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm text-[#e5a93b]">استكشف مجتمع باي 🧭</h3>
+                        <span class="text-[10px] text-gray-400">المنشورات الرائجة، الهاشتاجات، وأبرز الرواد والمطورين</span>
+                    </div>
+                </div>
+                <button onclick="window.closeExploreModal()" class="text-gray-400 hover:text-white text-lg p-2"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <!-- التبويبات الداخلية -->
+            <div class="flex border-b border-[#e5a93b]/20 bg-[#161109] px-4 gap-4 text-xs font-semibold">
+                <button onclick="window.switchExploreTab('trending')" id="explore-tab-trending" class="py-3 text-[#e5a93b] border-b-2 border-[#e5a93b] transition-all">🔥 المنشورات الرائجة</button>
+                <button onclick="window.switchExploreTab('hashtags')" id="explore-tab-hashtags" class="py-3 text-gray-400 hover:text-[#e5a93b] transition-all">🏷️ الوسوم والهاشتاجات</button>
+                <button onclick="window.switchExploreTab('pioneers')" id="explore-tab-pioneers" class="py-3 text-gray-400 hover:text-[#e5a93b] transition-all">🦅 أبرز الرواد والمطورين</button>
+            </div>
+
+            <!-- محتوى التبويبات -->
+            <div class="flex-1 p-4 overflow-y-auto space-y-4 bg-[#0c0905]">
+                <!-- تبويب المنشورات الرائجة -->
+                <div id="explore-content-trending" class="space-y-3">
+                    <!-- يتم التعبئة برمجياً من المنشورات الأكثر إعجاباً -->
+                </div>
+
+                <!-- تبويب الهاشتاجات -->
+                <div id="explore-content-hashtags" class="space-y-3 hidden">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div onclick="window.filterByHashtag('#PiNetwork')" class="p-3.5 bg-[#1b140b] border border-[#e5a93b]/30 rounded-xl cursor-pointer hover:border-[#e5a93b] transition-all">
+                            <span class="font-bold text-[#e5a93b] text-xs">#PiNetwork</span>
+                            <p class="text-[10px] text-gray-400 mt-1">الشبكة العالمية وأخبار العملة الرقمية</p>
+                        </div>
+                        <div onclick="window.filterByHashtag('#OpenMainnet')" class="p-3.5 bg-[#1b140b] border border-[#e5a93b]/30 rounded-xl cursor-pointer hover:border-[#e5a93b] transition-all">
+                            <span class="font-bold text-[#e5a93b] text-xs">#OpenMainnet</span>
+                            <p class="text-[10px] text-gray-400 mt-1">تحديثات الشبكة المفتوحة والتجارة</p>
+                        </div>
+                        <div onclick="window.filterByHashtag('#PiEcho')" class="p-3.5 bg-[#1b140b] border border-[#e5a93b]/30 rounded-xl cursor-pointer hover:border-[#e5a93b] transition-all">
+                            <span class="font-bold text-[#e5a93b] text-xs">#PiEcho</span>
+                            <p class="text-[10px] text-gray-400 mt-1">منصة الرواد والمطورين اللامركزية</p>
+                        </div>
+                        <div onclick="window.filterByHashtag('#Web3')" class="p-3.5 bg-[#1b140b] border border-[#e5a93b]/30 rounded-xl cursor-pointer hover:border-[#e5a93b] transition-all">
+                            <span class="font-bold text-[#e5a93b] text-xs">#Web3</span>
+                            <p class="text-[10px] text-gray-400 mt-1">تطبيقات البلوكشين الذكية والعقود</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- تبويب أبرز الرواد والمطورين -->
+                <div id="explore-content-pioneers" class="space-y-3 hidden">
+                    <div class="space-y-2">
+                        <div class="p-3.5 bg-[#1b140b] border border-[#e5a93b]/30 rounded-xl flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <img src="https://api.dicebear.com/7.x/bottts/svg?seed=AboKareem" class="w-10 h-10 rounded-full border border-[#e5a93b] object-cover">
+                                <div>
+                                    <h4 class="font-bold text-xs text-gray-100">أبو كريم (Abokareem999)</h4>
+                                    <p class="text-[10px] text-gray-400">مطور تطبيقات ويب 3 ومؤسس منصة Pi Echo</p>
+                                </div>
+                            </div>
+                            <span class="text-[10px] bg-amber-500/10 text-amber-400 px-2.5 py-1 rounded-full font-bold">باني رئيسي</span>
+                        </div>
+                        <div class="p-3.5 bg-[#1b140b] border border-[#e5a93b]/30 rounded-xl flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Ahmed" class="w-10 h-10 rounded-full border border-[#e5a93b]/40">
+                                <div>
+                                    <h4 class="font-bold text-xs text-gray-100">أحمد السوداني</h4>
+                                    <p class="text-[10px] text-gray-400">مستثمر ومحلل عملات رقمية وسوق باي</p>
+                                </div>
+                            </div>
+                            <span class="text-[10px] bg-green-500/10 text-green-400 px-2.5 py-1 rounded-full font-bold">رائد نشط</span>
+                        </div>
+                        <div class="p-3.5 bg-[#1b140b] border border-[#e5a93b]/30 rounded-xl flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah" class="w-10 h-10 rounded-full border border-[#e5a93b]/40">
+                                <div>
+                                    <h4 class="font-bold text-xs text-gray-100">سارة محمد</h4>
+                                    <p class="text-[10px] text-gray-400">مطورة واجهات وتصميم ثلاثي الأبعاد</p>
+                                </div>
+                            </div>
+                            <span class="text-[10px] bg-green-500/10 text-green-400 px-2.5 py-1 rounded-full font-bold">رائد نشط</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- سياسات وزيل الصفحة -->
     <footer class="w-full bg-[#120e07] border-t-2 border-[#e5a93b]/50 py-6 px-4 mt-auto text-center text-xs text-gray-400 space-y-3">
         <div class="flex flex-wrap justify-center gap-6 text-[#e5a93b] font-semibold">
@@ -332,11 +424,9 @@
         </div>
     </div>
 
-    <!-- نافذة صندوق الرسائل والمحادثة المباشرة (Step 1) -->
+    <!-- نافذة صندوق الرسائل والمحادثة المباشرة -->
     <div id="chat-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
         <div class="bg-[#120e07] border-2 border-[#e5a93b] rounded-3xl max-w-lg w-full h-[80vh] flex flex-col shadow-[0_0_30px_rgba(229,169,59,0.3)] relative overflow-hidden">
-            
-            <!-- رأس نافذة المحادثة -->
             <div class="p-4 bg-[#1a130a] border-b border-[#e5a93b]/30 flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 bg-gradient-to-tr from-[#e5a93b] to-yellow-500 rounded-full flex items-center justify-center text-[#080604] font-bold">
@@ -351,13 +441,7 @@
                 </div>
                 <button onclick="window.closeChatModal()" class="text-gray-400 hover:text-white text-lg p-2"><i class="fa-solid fa-xmark"></i></button>
             </div>
-
-            <!-- صندوق عرض الرسائل -->
-            <div id="chat-messages-container" class="flex-1 p-4 overflow-y-auto space-y-3 bg-[#0c0905]">
-                <!-- يتم تعبئة الرسائل برمجياً هنا -->
-            </div>
-
-            <!-- شريط إرسال الرسالة -->
+            <div id="chat-messages-container" class="flex-1 p-4 overflow-y-auto space-y-3 bg-[#0c0905]"></div>
             <div class="p-3 bg-[#1a130a] border-t border-[#e5a93b]/30 flex gap-2 items-center">
                 <input type="text" id="chat-input" placeholder="اكتب رسالتك إلى الرواد..." class="flex-1 bg-[#120e07] border border-[#e5a93b]/30 rounded-xl px-4 py-2.5 text-xs text-gray-200 outline-none focus:border-[#e5a93b]" onkeypress="if(event.key === 'Enter') window.sendChatMessage()">
                 <button onclick="window.sendChatMessage()" class="bg-[#e5a93b] hover:bg-yellow-500 text-[#080604] font-bold px-5 py-2.5 rounded-xl text-xs transition-all shadow-md">
@@ -438,9 +522,10 @@
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+        import { getStorage } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-storage.js";
 
         const firebaseConfig = {
           apiKey: "AIzaSyCyDmlRaqGY2C-PfKAKxL8GoYgg1qKiqDY",
@@ -457,9 +542,11 @@
         const firebaseApp = initializeApp(firebaseConfig);
         const auth = getAuth(firebaseApp);
         const db = getFirestore(firebaseApp);
+        const storage = getStorage(firebaseApp);
 
         window.firebaseAuth = auth;
         window.firebaseDb = db;
+        window.firebaseStorage = storage;
 
         let paymentTimerInterval = null;
 
@@ -627,6 +714,91 @@
             }
         }
 
+        // --- وظائف نافذة استكشف الجديدة ---
+        window.openExploreModal = function() {
+            const modal = document.getElementById('explore-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                renderTrendingPostsInExplore();
+            }
+        }
+
+        window.closeExploreModal = function() {
+            const modal = document.getElementById('explore-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+        window.switchExploreTab = function(tabName) {
+            const trendingDiv = document.getElementById('explore-content-trending');
+            const hashtagsDiv = document.getElementById('explore-content-hashtags');
+            const pioneersDiv = document.getElementById('explore-content-pioneers');
+
+            const tabTrendingBtn = document.getElementById('explore-tab-trending');
+            const tabHashtagsBtn = document.getElementById('explore-tab-hashtags');
+            const tabPioneersBtn = document.getElementById('explore-tab-pioneers');
+
+            // إخفاء الكل
+            trendingDiv.classList.add('hidden');
+            hashtagsDiv.classList.add('hidden');
+            pioneersDiv.classList.add('hidden');
+
+            tabTrendingBtn.className = "py-3 text-gray-400 hover:text-[#e5a93b] transition-all";
+            tabHashtagsBtn.className = "py-3 text-gray-400 hover:text-[#e5a93b] transition-all";
+            tabPioneersBtn.className = "py-3 text-gray-400 hover:text-[#e5a93b] transition-all";
+
+            if (tabName === 'trending') {
+                trendingDiv.classList.remove('hidden');
+                tabTrendingBtn.className = "py-3 text-[#e5a93b] border-b-2 border-[#e5a93b] transition-all";
+                renderTrendingPostsInExplore();
+            } else if (tabName === 'hashtags') {
+                hashtagsDiv.classList.remove('hidden');
+                tabHashtagsBtn.className = "py-3 text-[#e5a93b] border-b-2 border-[#e5a93b] transition-all";
+            } else if (tabName === 'pioneers') {
+                pioneersDiv.classList.remove('hidden');
+                tabPioneersBtn.className = "py-3 text-[#e5a93b] border-b-2 border-[#e5a93b] transition-all";
+            }
+        }
+
+        function renderTrendingPostsInExplore() {
+            const container = document.getElementById('explore-content-trending');
+            if (!container) return;
+            
+            // فرز المنشورات حسب الأكثر إعجاباً
+            let sortedPosts = [...posts].sort((a, b) => b.likes - a.likes);
+            
+            if (sortedPosts.length === 0) {
+                container.innerHTML = `<div class="text-center py-10 text-gray-500 text-xs">لا توجد منشورات متاحة في الاستكشاف حالياً.</div>`;
+                return;
+            }
+
+            container.innerHTML = "";
+            sortedPosts.slice(0, 5).forEach(post => {
+                const itemHTML = `
+                    <div class="bg-[#1b140b] border border-[#e5a93b]/30 p-3.5 rounded-xl space-y-2">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <img src="${post.avatar}" class="w-7 h-7 rounded-full border border-[#e5a93b]/40 object-cover">
+                                <span class="font-bold text-xs text-gray-200">${post.author}</span>
+                            </div>
+                            <span class="text-[10px] text-red-400 flex items-center gap-1"><i class="fa-solid fa-heart"></i> ${post.likes} إعجاب</span>
+                        </div>
+                        <p class="text-xs text-gray-300 line-clamp-2">${post.content}</p>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', itemHTML);
+            });
+        }
+
+        window.filterByHashtag = function(tag) {
+            window.closeExploreModal();
+            alert(`تم تصفية المنشورات للوسм: ${tag}\n(يمكنك كتابة منشورات جديدة بهذا الوسم الآن!)`);
+        }
+        // ----------------------------------------
+
         window.openInviteModal = function() {
             const modal = document.getElementById('invite-modal');
             if (modal) {
@@ -754,7 +926,6 @@
             }
         }
 
-        // دوال التحكم بالدردشة النصية (Step 3)
         window.openChatModal = function() {
             const modal = document.getElementById('chat-modal');
             if (modal) {

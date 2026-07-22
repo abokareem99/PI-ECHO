@@ -110,7 +110,11 @@
                 </a>
                 <a href="javascript:void(0)" onclick="window.toggleMobileSidebar(); window.openChatModal();" class="flex items-center gap-3 px-4 py-2.5 text-gray-300 hover:bg-[#24153b] hover:text-[#e5a93b] transition-all rounded-xl">
                     <i class="fa-regular fa-message text-base"></i>
-                    <span>الرسائل</span>
+                    <span>الدردشة العامة</span>
+                </a>
+                <a href="javascript:void(0)" onclick="window.toggleMobileSidebar(); window.openPrivateChatModal();" class="flex items-center gap-3 px-4 py-2.5 text-gray-300 hover:bg-[#24153b] hover:text-[#e5a93b] transition-all rounded-xl">
+                    <i class="fa-solid fa-comments text-base"></i>
+                    <span>الرسائل الخاصة</span>
                 </a>
                 <hr class="border-[#e5a93b]/20 my-3">
                 <button onclick="window.openInviteModal(); window.toggleMobileSidebar();" class="w-full bg-gradient-to-r from-[#e5a93b] to-yellow-500 text-[#0b0713] font-bold py-2.5 px-4 rounded-xl shadow-md hover:from-yellow-500 hover:to-yellow-600 transition-all text-xs">
@@ -149,7 +153,10 @@
                     <i class="fa-regular fa-compass text-lg"></i><span>استكشف</span>
                 </a>
                 <a href="javascript:void(0)" onclick="window.openChatModal()" class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:bg-[#24153b] hover:text-[#e5a93b] transition-all">
-                    <i class="fa-regular fa-message text-lg"></i><span>الرسائل</span>
+                    <i class="fa-regular fa-message text-lg"></i><span>الدردشة العامة</span>
+                </a>
+                <a href="javascript:void(0)" onclick="window.openPrivateChatModal()" class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:bg-[#24153b] hover:text-[#e5a93b] transition-all">
+                    <i class="fa-solid fa-comments text-lg"></i><span>الرسائل الخاصة</span>
                 </a>
                 <hr class="border-[#e5a93b]/30 my-3">
                 <button onclick="window.openInviteModal()" class="w-full bg-gradient-to-r from-[#e5a93b] to-yellow-500 text-[#0b0713] font-bold py-2.5 px-4 rounded-xl shadow-md hover:from-yellow-500 hover:to-yellow-600 transition-all text-sm mb-3">
@@ -302,7 +309,10 @@
                                     <p class="text-[10px] text-gray-400">مطور تطبيقات ويب 3 ومؤسس منصة Pi Echo</p>
                                 </div>
                             </div>
-                            <span class="text-[10px] bg-amber-500/10 text-amber-400 px-2.5 py-1 rounded-full font-bold">باني رئيسي</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[10px] bg-amber-500/10 text-amber-400 px-2.5 py-1 rounded-full font-bold">باني رئيسي</span>
+                                <button onclick="window.openPrivateChatWith('أبو كريم')" class="bg-[#e5a93b] text-[#0b0713] hover:bg-yellow-500 px-3 py-1 rounded-lg text-[10px] font-bold transition-all"><i class="fa-solid fa-comment-dots"></i> مراسلة</button>
+                            </div>
                         </div>
                         <div class="p-3.5 bg-[#1b0f2e] border border-[#e5a93b]/30 rounded-xl flex items-center justify-between">
                             <div class="flex items-center gap-3">
@@ -312,7 +322,10 @@
                                     <p class="text-[10px] text-gray-400">مستثمر ومحلل عملات رقمية وسوق باي</p>
                                 </div>
                             </div>
-                            <span class="text-[10px] bg-green-500/10 text-green-400 px-2.5 py-1 rounded-full font-bold">رائد نشط</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[10px] bg-green-500/10 text-green-400 px-2.5 py-1 rounded-full font-bold">رائد نشط</span>
+                                <button onclick="window.openPrivateChatWith('أحمد السوداني')" class="bg-[#e5a93b] text-[#0b0713] hover:bg-yellow-500 px-3 py-1 rounded-lg text-[10px] font-bold transition-all"><i class="fa-solid fa-comment-dots"></i> مراسلة</button>
+                            </div>
                         </div>
                         <div class="p-3.5 bg-[#1b0f2e] border border-[#e5a93b]/30 rounded-xl flex items-center justify-between">
                             <div class="flex items-center gap-3">
@@ -322,7 +335,10 @@
                                     <p class="text-[10px] text-gray-400">مطورة واجهات وتصميم ثلاثي الأبعاد</p>
                                 </div>
                             </div>
-                            <span class="text-[10px] bg-green-500/10 text-green-400 px-2.5 py-1 rounded-full font-bold">رائد نشط</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[10px] bg-green-500/10 text-green-400 px-2.5 py-1 rounded-full font-bold">رائد نشط</span>
+                                <button onclick="window.openPrivateChatWith('سارة محمد')" class="bg-[#e5a93b] text-[#0b0713] hover:bg-yellow-500 px-3 py-1 rounded-lg text-[10px] font-bold transition-all"><i class="fa-solid fa-comment-dots"></i> مراسلة</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -359,7 +375,7 @@
     <footer class="md:hidden mobile-footer text-gray-400 text-xl">
         <a href="javascript:void(0)" class="text-[#e5a93b]"><i class="fa-solid fa-house"></i></a>
         <a href="javascript:void(0)" onclick="window.openVoiceChatModal()" class="hover:text-[#e5a93b]"><i class="fa-solid fa-microphone-lines"></i></a>
-        <a href="javascript:void(0)" class="hover:text-[#e5a93b]" onclick="window.openEditProfileModal()"><i class="fa-regular fa-user"></i></a>
+        <a href="javascript:void(0)" onclick="window.openPrivateChatModal()" class="hover:text-[#e5a93b]"><i class="fa-solid fa-comments"></i></a>
         <a href="javascript:void(0)" class="hover:text-[#e5a93b]" onclick="window.openChatModal()"><i class="fa-regular fa-message"></i></a>
     </footer>
 
@@ -428,6 +444,7 @@
         </div>
     </div>
 
+    <!-- نافذة الدردشة العامة -->
     <div id="chat-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
         <div class="bg-gradient-to-b from-[#1b0f2e] to-[#130a21] border-2 border-[#e5a93b] rounded-3xl max-w-lg w-full h-[80vh] flex flex-col shadow-[0_0_30px_rgba(229,169,59,0.3)] relative overflow-hidden">
             <div class="p-4 bg-[#24153b] border-b border-[#e5a93b]/30 flex items-center justify-between">
@@ -450,6 +467,56 @@
                 <button onclick="window.sendChatMessage()" class="bg-[#e5a93b] hover:bg-yellow-500 text-[#0b0713] font-bold px-5 py-2.5 rounded-xl text-xs transition-all shadow-md">
                     <i class="fa-solid fa-paper-plane"></i>
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة الرسائل الخاصة (الدردشة الخاصة 1-1) -->
+    <div id="private-chat-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-gradient-to-b from-[#1b0f2e] to-[#130a21] border-2 border-[#e5a93b] rounded-3xl max-w-2xl w-full h-[82vh] flex flex-col shadow-[0_0_30px_rgba(229,169,59,0.3)] relative overflow-hidden">
+            <div class="p-4 bg-[#24153b] border-b border-[#e5a93b]/30 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-tr from-[#e5a93b] to-yellow-500 rounded-full flex items-center justify-center text-[#0b0713] font-bold">
+                        <i class="fa-solid fa-comments text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm text-[#e5a93b]">الرسائل الخاصة بين الرواد 🔒</h3>
+                        <span id="private-chat-subtitle" class="text-[10px] text-gray-400">اختر رائدًا لبدء المحادثة أو المتابعة</span>
+                    </div>
+                </div>
+                <button onclick="window.closePrivateChatModal()" class="text-gray-400 hover:text-white text-lg p-2"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="flex-1 flex flex-col md:flex-row overflow-hidden bg-[#0d0714]">
+                <!-- قائمة المحادثات / جهات الاتصال -->
+                <div class="w-full md:w-1/3 bg-[#160d24] border-l border-[#e5a93b]/20 p-3 overflow-y-auto space-y-2">
+                    <h4 class="text-[11px] font-bold text-[#e5a93b] mb-2 px-1">الرواد المتاحون للمراسلة:</h4>
+                    <div id="pioneers-list-container" class="space-y-1.5">
+                        <!-- يُعبأ ديناميكياً -->
+                    </div>
+                </div>
+
+                <!-- شاشة المحادثة الفعلية -->
+                <div class="flex-1 flex flex-col bg-[#0b0713] relative">
+                    <div id="active-chat-header" class="p-3 bg-[#130a21] border-b border-[#e5a93b]/20 flex items-center gap-3">
+                        <img id="active-dm-avatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=Pioneer" class="w-8 h-8 rounded-full border border-[#e5a93b]">
+                        <div>
+                            <h5 id="active-dm-name" class="font-bold text-xs text-gray-200">اختر رائدًا للمحادثة</h5>
+                            <span class="text-[9px] text-green-400">مشفرة ومؤمنة بالكامل</span>
+                        </div>
+                    </div>
+
+                    <div id="private-messages-container" class="flex-1 p-4 overflow-y-auto space-y-3">
+                        <div class="text-center text-gray-500 text-xs py-20">اختر محادثة من القائمة الجانبية لبدء إرسال الرسائل الخاصة.</div>
+                    </div>
+
+                    <div class="p-3 bg-[#160d24] border-t border-[#e5a93b]/20 flex gap-2 items-center">
+                        <input type="text" id="private-chat-input" placeholder="اكتب رسالة خاصة..." class="flex-1 bg-[#130a21] border border-[#e5a93b]/30 rounded-xl px-4 py-2 text-xs text-gray-200 outline-none focus:border-[#e5a93b]" onkeypress="if(event.key === 'Enter') window.sendPrivateMessage()" disabled>
+                        <button id="send-private-btn" onclick="window.sendPrivateMessage()" class="bg-[#e5a93b] hover:bg-yellow-500 text-[#0b0713] font-bold px-4 py-2 rounded-xl text-xs transition-all shadow-md opacity-50 cursor-not-allowed" disabled>
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -570,6 +637,10 @@
         let isMicMuted = true;
         let isConnectingVoice = false;
         let searchQuery = "";
+
+        // متغيرات الدردشة الخاصة
+        let activePrivateRecipient = null;
+        let privateChatUnsubscribe = null;
 
         function safeGetItem(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
         function safeSetItem(key, value) { try { localStorage.setItem(key, value); } catch (e) {} }
@@ -1063,6 +1134,151 @@
             });
         }
 
+        // ==========================================
+        // الوظائف البرمجية للدردشة الخاصة (Private Chat)
+        // ==========================================
+        window.openPrivateChatModal = function() {
+            const modal = document.getElementById('private-chat-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                renderPioneersListForDM();
+            }
+        }
+
+        window.closePrivateChatModal = function() {
+            const modal = document.getElementById('private-chat-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+            if (privateChatUnsubscribe) {
+                privateChatUnsubscribe();
+                privateChatUnsubscribe = null;
+            }
+        }
+
+        function renderPioneersListForDM() {
+            const listContainer = document.getElementById('pioneers-list-container');
+            if (!listContainer) return;
+
+            // قائمة رواد افتراضية أو مستخرجة من المنشورات لضمان وجود أشخاص للمراسلة
+            const defaultPioneers = [
+                { name: "أحمد السوداني", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Ahmed", role: "مستثمر ومحلل عملات" },
+                { name: "سارة محمد", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah", role: "مطورة واجهات 3D" },
+                { name: "خالد عمر", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Khaled", role: "رائد وباني شبكة" },
+                { name: "فاطمة علي", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Fatima", role: "مختصة مدفوعات Pi" }
+            ];
+
+            listContainer.innerHTML = "";
+            defaultPioneers.forEach(pioneer => {
+                if (pioneer.name === currentUser.username) return; // لا تظهر نفسك
+                const itemHTML = `
+                    <div onclick="window.openPrivateChatWith('${pioneer.name}', '${pioneer.avatar}')" class="p-2.5 bg-[#1b0f2e] hover:bg-[#24153b] border border-[#e5a93b]/20 hover:border-[#e5a93b] rounded-xl cursor-pointer transition-all flex items-center gap-2.5">
+                        <img src="${pioneer.avatar}" class="w-8 h-8 rounded-full border border-[#e5a93b]/40 object-cover">
+                        <div class="overflow-hidden">
+                            <h5 class="font-bold text-xs text-gray-200 truncate">${pioneer.name}</h5>
+                            <p class="text-[9px] text-gray-400 truncate">${pioneer.role}</p>
+                        </div>
+                    </div>
+                `;
+                listContainer.insertAdjacentHTML('beforeend', itemHTML);
+            });
+        }
+
+        window.openPrivateChatWith = function(recipientName, recipientAvatar = "https://api.dicebear.com/7.x/bottts/svg?seed=Pioneer") {
+            window.openPrivateChatModal();
+            activePrivateRecipient = recipientName;
+
+            document.getElementById('active-dm-name').innerText = recipientName;
+            document.getElementById('active-dm-avatar').src = recipientAvatar;
+            document.getElementById('private-chat-subtitle').innerText = `المحادثة الخاصة مع: ${recipientName}`;
+            
+            const chatInput = document.getElementById('private-chat-input');
+            const sendBtn = document.getElementById('send-private-btn');
+            
+            chatInput.disabled = false;
+            sendBtn.disabled = false;
+            sendBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+
+            listenToPrivateMessages(recipientName);
+        }
+
+        function listenToPrivateMessages(recipientName) {
+            if (privateChatUnsubscribe) {
+                privateChatUnsubscribe();
+                privateChatUnsubscribe = null;
+            }
+
+            // توليد معرف فريد وثابت للمحادثة بين الطرفين (بغض النظر عن الترتيب)
+            const chatId = [currentUser.username, recipientName].sort().join('_');
+            const q = query(collection(db, "private_messages"), orderBy("timestamp", "asc"));
+
+            privateChatUnsubscribe = onSnapshot(q, (snapshot) => {
+                const container = document.getElementById('private-messages-container');
+                if (!container) return;
+                container.innerHTML = "";
+
+                let hasMessages = false;
+                snapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    if (data.chatId === chatId) {
+                        hasMessages = true;
+                        const isMe = data.sender === currentUser.username;
+                        let timeStr = "الآن";
+                        if (data.timestamp && typeof data.timestamp.seconds !== 'undefined') {
+                            timeStr = new Date(data.timestamp.seconds * 1000).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+                        }
+
+                        const msgHTML = `
+                            <div class="flex items-start gap-2.5 ${isMe ? 'flex-row-reverse' : ''}">
+                                <img src="${isMe ? currentUser.avatar : document.getElementById('active-dm-avatar').src}" class="w-7 h-7 rounded-full border border-[#e5a93b]/40 object-cover">
+                                <div class="max-w-[75%] bg-[#1b0f2e] border ${isMe ? 'border-[#e5a93b]/50' : 'border-[#e5a93b]/20'} p-3 rounded-2xl space-y-1">
+                                    <div class="flex items-center justify-between gap-3">
+                                        <span class="text-[9px] font-bold text-[#e5a93b]">${data.sender}</span>
+                                        <span class="text-[8px] text-gray-500">${timeStr}</span>
+                                    </div>
+                                    <p class="text-xs text-gray-200 leading-relaxed whitespace-pre-line">${data.content}</p>
+                                </div>
+                            </div>
+                        `;
+                        container.insertAdjacentHTML('beforeend', msgHTML);
+                    }
+                });
+
+                if (!hasMessages) {
+                    container.innerHTML = `<div class="text-center py-16 text-gray-500 text-xs">لا توجد رسائل سابقة مع ${recipientName}. ابدأ المحادثة الآن!</div>`;
+                } else {
+                    container.scrollTop = container.scrollHeight;
+                }
+            });
+        }
+
+        window.sendPrivateMessage = async function() {
+            if (!activePrivateRecipient) return;
+            const input = document.getElementById('private-chat-input');
+            if (!input) return;
+            const text = input.value.trim();
+            if (!text) return;
+
+            const chatId = [currentUser.username, activePrivateRecipient].sort().join('_');
+
+            try {
+                await addDoc(collection(db, "private_messages"), {
+                    chatId: chatId,
+                    sender: currentUser.username,
+                    recipient: activePrivateRecipient,
+                    content: text,
+                    timestamp: serverTimestamp()
+                });
+                input.value = "";
+            } catch (error) {
+                console.error("خطأ في إرسال الرسالة الخاصة:", error);
+                alert("فشل إرسال الرسالة الخاصة، تحقق من الاتصال.");
+            }
+        }
+        // ==========================================
+
         window.openSupportModal = function(postId, authorName) {
             activePostIdForTip = postId;
             activeRecipientName = authorName;
@@ -1387,9 +1603,14 @@
                                     <span class="text-[10px] text-gray-500">${post.timestamp}</span>
                                 </div>
                             </div>
-                            <button onclick="window.openSupportModal('${post.id}', '${post.author}')" class="bg-[#e5a93b]/10 text-[#e5a93b] border border-[#e5a93b]/30 hover:bg-[#e5a93b] hover:text-[#0b0713] px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5">
-                                <i class="fa-solid fa-pi"></i>دعم الرائد
-                            </button>
+                            <div class="flex items-center gap-2">
+                                <button onclick="window.openPrivateChatWith('${post.author}', '${post.avatar}')" class="bg-[#24153b] text-[#e5a93b] border border-[#e5a93b]/30 hover:border-[#e5a93b] px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1" title="مراسلة خاصة">
+                                    <i class="fa-solid fa-comment-dots"></i>
+                                </button>
+                                <button onclick="window.openSupportModal('${post.id}', '${post.author}')" class="bg-[#e5a93b]/10 text-[#e5a93b] border border-[#e5a93b]/30 hover:bg-[#e5a93b] hover:text-[#0b0713] px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5">
+                                    <i class="fa-solid fa-pi"></i>دعم الرائد
+                                </button>
+                            </div>
                         </div>
                         <p class="text-sm text-gray-300 leading-relaxed whitespace-pre-line">${post.content}</p>
                         ${mediaHTML}

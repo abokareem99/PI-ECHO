@@ -44,7 +44,7 @@
             background: linear-gradient(135deg, #1b0f2e, #130a21); border: 2px solid #e5a93b; border-radius: 20px;
             box-shadow: 0 4px 25px rgba(229, 169, 59, 0.25);
             padding-top: 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom));
-            display: flex; justify-content: space-around; align-items: center;
+            display: flex; justify-around: space-around; align-items: center;
         }
     </style>
 </head>
@@ -591,7 +591,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, updateDoc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, where, orderBy, onSnapshot, serverTimestamp, doc, updateDoc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
         import { getStorage } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-storage.js";
 
         const firebaseConfig = {
@@ -1094,6 +1094,7 @@
                     timestamp: serverTimestamp()
                 });
                 input.value = "";
+                input.focus();
             } catch (error) {
                 console.error("خطأ في إرسال الرسالة:", error);
                 alert("فشل إرسال الرسالة، تحقق من الاتصال.");
@@ -1108,8 +1109,8 @@
             chatUnsubscribe = onSnapshot(q, (snapshot) => {
                 const container = document.getElementById('chat-messages-container');
                 if (!container) return;
-                container.innerHTML = "";
-
+                
+                let messagesHTML = "";
                 snapshot.forEach((doc) => {
                     const data = doc.data();
                     const isMe = data.author === currentUser.username;
@@ -1118,7 +1119,7 @@
                         timeStr = new Date(data.timestamp.seconds * 1000).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
                     }
 
-                    const messageHTML = `
+                    messagesHTML += `
                         <div class="flex items-start gap-2.5 ${isMe ? 'flex-row-reverse' : ''}">
                             <img src="${data.avatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=Pioneer'}" class="w-8 h-8 rounded-full border border-[#e5a93b]/40 object-cover">
                             <div class="max-w-[75%] bg-[#1b0f2e] border ${isMe ? 'border-[#e5a93b]/50' : 'border-[#e5a93b]/20'} p-3 rounded-2xl space-y-1">
@@ -1130,14 +1131,14 @@
                             </div>
                         </div>
                     `;
-                    container.insertAdjacentHTML('beforeend', messageHTML);
                 });
+                container.innerHTML = messagesHTML;
                 container.scrollTop = container.scrollHeight;
             });
         }
 
         // ==========================================
-        // الوظائف البرمجية للدردشة الخاصة (Private Chat) ومعالجة المتصلين
+        // الوظائف البرمجية المعدلة للدردشة الخاصة (Private Chat)
         // ==========================================
         window.openPrivateChatModal = function() {
             const modal = document.getElementById('private-chat-modal');
@@ -1230,6 +1231,7 @@
             sendBtn.disabled = false;
             sendBtn.classList.remove('opacity-50', 'cursor-not-allowed');
 
+            chatInput.focus();
             listenToPrivateMessages(recipientName);
         }
 
@@ -1240,25 +1242,74 @@
             }
 
             const chatId = [currentUser.username, recipientName].sort().join('_');
-            const q = query(collection(db, "private_messages"), orderBy("timestamp", "asc"));
+            
+            // تصفية الرسائل الخاصة بالـ chatId المحدد فقط لمنع ثقل الذاكرة وتجمد الشاشة
+            const q = query(
+                collection(db, "private_messages"), 
+                where("chatId", "==", chatId), 
+                orderBy("timestamp", "asc")
+            );
 
             privateChatUnsubscribe = onSnapshot(q, (snapshot) => {
                 const container = document.getElementById('private-messages-container');
                 if (!container) return;
-                container.innerHTML = "";
 
+                let messagesHTML = "";
                 let hasMessages = false;
+
                 snapshot.forEach((docSnap) => {
                     const data = docSnap.data();
-                    if (data.chatId === chatId) {
-                        hasMessages = true;
+                    hasMessages = true;
+                    const isMe = data.sender === currentUser.username;
+                    let timeStr = "الآن";
+                    if (data.timestamp && typeof data.timestamp.seconds !== 'undefined') {
+                        timeStr = new Date(data.timestamp.seconds * 1000).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+                    }
+
+                    messagesHTML += `
+                        <div class="flex items-start gap-2.5 ${isMe ? 'flex-row-reverse' : ''}">
+                            <img src="${isMe ? currentUser.avatar : document.getElementById('active-dm-avatar').src}" class="w-7 h-7 rounded-full border border-[#e5a93b]/40 object-cover">
+                            <div class="max-w-[75%] bg-[#1b0f2e] border ${isMe ? 'border-[#e5a93b]/50' : 'border-[#e5a93b]/20'} p-3 rounded-2xl space-y-1">
+                                <div class="flex items-center justify-between gap-3">
+                                    <span class="text-[9px] font-bold text-[#e5a93b]">${data.sender}</span>
+                                    <span class="text-[8px] text-gray-500">${timeStr}</span>
+                                </div>
+                                <p class="text-xs text-gray-200 leading-relaxed whitespace-pre-line">${data.content}</p>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                if (!hasMessages) {
+                    container.innerHTML = `<div class="text-center py-16 text-gray-500 text-xs">لا توجد رسائل سابقة مع ${recipientName}. ابدأ المحادثة الآن!</div>`;
+                } else {
+                    container.innerHTML = messagesHTML;
+                    container.scrollTop = container.scrollHeight;
+                }
+            }, (error) => {
+                console.error("معالج الاحتياط للاستعلام:", error);
+                // استعلام بديل في حال عدم وجود الفهرس التجميعي لتجنب الأعطال
+                const fallbackQ = query(collection(db, "private_messages"), where("chatId", "==", chatId));
+                privateChatUnsubscribe = onSnapshot(fallbackQ, (snapshot) => {
+                    const container = document.getElementById('private-messages-container');
+                    if (!container) return;
+
+                    let docs = [];
+                    snapshot.forEach(docSnap => docs.push(docSnap.data()));
+                    docs.sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
+
+                    if (docs.length === 0) {
+                        container.innerHTML = `<div class="text-center py-16 text-gray-500 text-xs">لا توجد رسائل سابقة مع ${recipientName}. ابدأ المحادثة الآن!</div>`;
+                        return;
+                    }
+
+                    let messagesHTML = docs.map(data => {
                         const isMe = data.sender === currentUser.username;
                         let timeStr = "الآن";
                         if (data.timestamp && typeof data.timestamp.seconds !== 'undefined') {
                             timeStr = new Date(data.timestamp.seconds * 1000).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
                         }
-
-                        const msgHTML = `
+                        return `
                             <div class="flex items-start gap-2.5 ${isMe ? 'flex-row-reverse' : ''}">
                                 <img src="${isMe ? currentUser.avatar : document.getElementById('active-dm-avatar').src}" class="w-7 h-7 rounded-full border border-[#e5a93b]/40 object-cover">
                                 <div class="max-w-[75%] bg-[#1b0f2e] border ${isMe ? 'border-[#e5a93b]/50' : 'border-[#e5a93b]/20'} p-3 rounded-2xl space-y-1">
@@ -1270,15 +1321,11 @@
                                 </div>
                             </div>
                         `;
-                        container.insertAdjacentHTML('beforeend', msgHTML);
-                    }
-                });
+                    }).join('');
 
-                if (!hasMessages) {
-                    container.innerHTML = `<div class="text-center py-16 text-gray-500 text-xs">لا توجد رسائل سابقة مع ${recipientName}. ابدأ المحادثة الآن!</div>`;
-                } else {
+                    container.innerHTML = messagesHTML;
                     container.scrollTop = container.scrollHeight;
-                }
+                });
             });
         }
 
@@ -1292,6 +1339,9 @@
             const chatId = [currentUser.username, activePrivateRecipient].sort().join('_');
 
             try {
+                input.value = "";
+                input.focus(); // إعادة مؤشر الكتابة تلقائياً والحفاظ على لوحة المفاتيح
+
                 await addDoc(collection(db, "private_messages"), {
                     chatId: chatId,
                     sender: currentUser.username,
@@ -1299,7 +1349,6 @@
                     content: text,
                     timestamp: serverTimestamp()
                 });
-                input.value = "";
             } catch (error) {
                 console.error("خطأ في إرسال الرسالة الخاصة:", error);
                 alert("فشل إرسال الرسالة الخاصة، تحقق من الاتصال.");
@@ -1730,4 +1779,4 @@
         window.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
-</html> 
+</html>

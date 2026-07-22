@@ -61,11 +61,11 @@
 
         <div class="hidden md:flex items-center bg-[#1b140b] rounded-full px-4 py-1.5 w-96 border border-[#e5a93b]/30 focus-within:border-[#e5a93b] transition-all">
             <i class="fa-solid fa-magnifying-glass text-gray-400 ml-2"></i>
-            <input type="text" placeholder="ابحث عن منشورات أو رواد..." class="bg-transparent border-none outline-none text-sm w-full text-gray-200 placeholder-gray-500">
+            <input type="text" id="global-search-input" placeholder="ابحث عن منشورات أو رواد..." class="bg-transparent border-none outline-none text-sm w-full text-gray-200 placeholder-gray-500" oninput="window.handleGlobalSearch(this.value)">
         </div>
 
         <div class="flex items-center gap-4">
-            <button class="relative p-2 text-gray-300 hover:text-[#e5a93b] transition-colors">
+            <button class="relative p-2 text-gray-300 hover:text-[#e5a93b] transition-colors" onclick="alert('لا توجد إشعارات جديدة حالياً.')">
                 <i class="fa-regular fa-bell text-xl"></i>
                 <span class="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
             </button>
@@ -251,7 +251,6 @@
     <!-- نافذة استكشف المتقدمة -->
     <div id="explore-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
         <div class="bg-[#120e07] border-2 border-[#e5a93b] rounded-3xl max-w-2xl w-full h-[85vh] flex flex-col shadow-[0_0_30px_rgba(229,169,59,0.3)] relative overflow-hidden">
-            <!-- رأس النافذة -->
             <div class="p-4 bg-[#1a130a] border-b border-[#e5a93b]/30 flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 bg-gradient-to-tr from-[#e5a93b] to-yellow-500 rounded-full flex items-center justify-center text-[#080604] font-bold">
@@ -265,21 +264,14 @@
                 <button onclick="window.closeExploreModal()" class="text-gray-400 hover:text-white text-lg p-2"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
-            <!-- التبويبات الداخلية -->
             <div class="flex border-b border-[#e5a93b]/20 bg-[#161109] px-4 gap-4 text-xs font-semibold">
                 <button onclick="window.switchExploreTab('trending')" id="explore-tab-trending" class="py-3 text-[#e5a93b] border-b-2 border-[#e5a93b] transition-all">🔥 المنشورات الرائجة</button>
                 <button onclick="window.switchExploreTab('hashtags')" id="explore-tab-hashtags" class="py-3 text-gray-400 hover:text-[#e5a93b] transition-all">🏷️ الوسوم والهاشتاجات</button>
                 <button onclick="window.switchExploreTab('pioneers')" id="explore-tab-pioneers" class="py-3 text-gray-400 hover:text-[#e5a93b] transition-all">🦅 أبرز الرواد والمطورين</button>
             </div>
 
-            <!-- محتوى التبويبات -->
             <div class="flex-1 p-4 overflow-y-auto space-y-4 bg-[#0c0905]">
-                <!-- تبويب المنشورات الرائجة -->
-                <div id="explore-content-trending" class="space-y-3">
-                    <!-- يتم التعبئة برمجياً من المنشورات الأكثر إعجاباً -->
-                </div>
-
-                <!-- تبويب الهاشتاجات -->
+                <div id="explore-content-trending" class="space-y-3"></div>
                 <div id="explore-content-hashtags" class="space-y-3 hidden">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div onclick="window.filterByHashtag('#PiNetwork')" class="p-3.5 bg-[#1b140b] border border-[#e5a93b]/30 rounded-xl cursor-pointer hover:border-[#e5a93b] transition-all">
@@ -300,8 +292,6 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- تبويب أبرز الرواد والمطورين -->
                 <div id="explore-content-pioneers" class="space-y-3 hidden">
                     <div class="space-y-2">
                         <div class="p-3.5 bg-[#1b140b] border border-[#e5a93b]/30 rounded-xl flex items-center justify-between">
@@ -340,7 +330,6 @@
         </div>
     </div>
 
-    <!-- سياسات وزيل الصفحة -->
     <footer class="w-full bg-[#120e07] border-t-2 border-[#e5a93b]/50 py-6 px-4 mt-auto text-center text-xs text-gray-400 space-y-3">
         <div class="flex flex-wrap justify-center gap-6 text-[#e5a93b] font-semibold">
             <a href="javascript:void(0)" onclick="alert('سياسة الخصوصية: نلتزم بحماية بيانات الرواد وخصوصيتهم طبقاً لمعايير شبكة باي.');" class="hover:underline">سياسة الخصوصية</a>
@@ -357,7 +346,6 @@
         <a href="javascript:void(0)" class="hover:text-[#e5a93b]" onclick="window.openChatModal()"><i class="fa-regular fa-message"></i></a>
     </footer>
 
-    <!-- نافذة دعوة صديق الجديدة -->
     <div id="invite-modal" class="fixed inset-0 bg-black/75 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
         <div class="bg-[#120e07] border-2 border-[#e5a93b] rounded-3xl max-w-md w-full p-6 text-center space-y-5 shadow-2xl relative">
             <button onclick="window.closeInviteModal()" class="absolute top-4 left-4 text-gray-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
@@ -380,7 +368,6 @@
         </div>
     </div>
 
-    <!-- نافذة الروم الصوتي -->
     <div id="voice-chat-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
         <div class="bg-[#120e07] border-2 border-[#e5a93b] rounded-3xl max-w-md w-full p-6 text-center space-y-6 shadow-[0_0_30px_rgba(229,169,59,0.3)] relative">
             <button onclick="window.closeVoiceChatModal()" class="absolute top-4 left-4 text-gray-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
@@ -424,7 +411,6 @@
         </div>
     </div>
 
-    <!-- نافذة صندوق الرسائل والمحادثة المباشرة -->
     <div id="chat-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
         <div class="bg-[#120e07] border-2 border-[#e5a93b] rounded-3xl max-w-lg w-full h-[80vh] flex flex-col shadow-[0_0_30px_rgba(229,169,59,0.3)] relative overflow-hidden">
             <div class="p-4 bg-[#1a130a] border-b border-[#e5a93b]/30 flex items-center justify-between">
@@ -451,7 +437,6 @@
         </div>
     </div>
 
-    <!-- نافذة تعديل الملف الشخصي -->
     <div id="profile-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
         <div class="bg-[#120e07] border-2 border-[#e5a93b] rounded-3xl max-w-md w-full p-6 space-y-6 shadow-2xl relative">
             <button onclick="window.closeEditProfileModal()" class="absolute top-4 left-4 text-gray-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
@@ -477,7 +462,6 @@
         </div>
     </div>
 
-    <!-- نافذة دعم Pi -->
     <div id="payment-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
         <div class="bg-[#120e07] border-2 border-[#e5a93b] rounded-3xl max-w-md w-full p-6 text-center space-y-6 shadow-2xl relative">
             <button onclick="window.closeSupportModal()" class="absolute top-4 left-4 text-gray-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
@@ -500,7 +484,6 @@
         </div>
     </div>
 
-    <!-- النافذة الخضراء للنجاح والشكر -->
     <div id="success-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
         <div class="bg-[#120e07] border-2 border-green-500 rounded-3xl max-w-md w-full p-6 text-center space-y-6 shadow-[0_0_30px_rgba(34,197,94,0.3)] relative">
             <button onclick="window.closeSuccessModal()" class="absolute top-4 left-4 text-gray-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
@@ -524,7 +507,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, updateDoc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
         import { getStorage } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-storage.js";
 
         const firebaseConfig = {
@@ -569,6 +552,7 @@
         let isBypassActive = false;
         let isMicMuted = true;
         let isConnectingVoice = false;
+        let searchQuery = "";
 
         function safeGetItem(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
         function safeSetItem(key, value) { try { localStorage.setItem(key, value); } catch (e) {} }
@@ -586,6 +570,20 @@
             updateUserProfileDOM();
             listenToPostsFromFirebase();
             startPiSDKInitialization();
+        }
+
+        async function saveProfileToFirebase(userObj) {
+            try {
+                const userRef = doc(db, "users", userObj.username);
+                await setDoc(userRef, {
+                    username: userObj.username,
+                    avatar: userObj.avatar,
+                    bio: userObj.bio,
+                    lastUpdated: serverTimestamp()
+                }, { merge: true });
+            } catch (err) {
+                console.error("Error saving profile to Firestore:", err);
+            }
         }
 
         function updateUserProfileDOM() {
@@ -663,6 +661,7 @@
                         updateUserProfileDOM();
                         updateSDKStatus(`🟢 متصل: ${authData.user.username}`, "text-green-400");
                         safeSetItem('piecho_user_v2', JSON.stringify(currentUser));
+                        saveProfileToFirebase(currentUser);
                     }).catch(function(error) { 
                         updateSDKStatus("⚠️ فشل الربط (اضغط للتخطي)", "text-red-400 hover:text-red-300"); 
                     });
@@ -710,11 +709,11 @@
                 currentUser.isPiAuthenticated = true; 
                 updateUserProfileDOM();
                 updateSDKStatus("🟢 وضع تجريبي (نشط)", "text-yellow-400");
+                saveProfileToFirebase(currentUser);
                 alert("تم تفعيل الوضع التجريبي بنجاح!");
             }
         }
 
-        // --- وظائف نافذة استكشف الجديدة ---
         window.openExploreModal = function() {
             const modal = document.getElementById('explore-modal');
             if (modal) {
@@ -741,7 +740,6 @@
             const tabHashtagsBtn = document.getElementById('explore-tab-hashtags');
             const tabPioneersBtn = document.getElementById('explore-tab-pioneers');
 
-            // إخفاء الكل
             trendingDiv.classList.add('hidden');
             hashtagsDiv.classList.add('hidden');
             pioneersDiv.classList.add('hidden');
@@ -767,7 +765,6 @@
             const container = document.getElementById('explore-content-trending');
             if (!container) return;
             
-            // فرز المنشورات حسب الأكثر إعجاباً
             let sortedPosts = [...posts].sort((a, b) => b.likes - a.likes);
             
             if (sortedPosts.length === 0) {
@@ -795,9 +792,16 @@
 
         window.filterByHashtag = function(tag) {
             window.closeExploreModal();
-            alert(`تم تصفية المنشورات للوسм: ${tag}\n(يمكنك كتابة منشورات جديدة بهذا الوسم الآن!)`);
+            searchQuery = tag;
+            const globalInput = document.getElementById('global-search-input');
+            if (globalInput) globalInput.value = tag;
+            renderPosts();
         }
-        // ----------------------------------------
+
+        window.handleGlobalSearch = function(val) {
+            searchQuery = val.trim();
+            renderPosts();
+        }
 
         window.openInviteModal = function() {
             const modal = document.getElementById('invite-modal');
@@ -950,7 +954,7 @@
             if (!text) return;
 
             try {
-                await addDoc(collection(window.firebaseDb, "chat_messages"), {
+                await addDoc(collection(db, "chat_messages"), {
                     author: currentUser.username,
                     avatar: currentUser.avatar,
                     content: text,
@@ -966,7 +970,7 @@
         let chatUnsubscribe = null;
         function listenToChatMessages() {
             if (chatUnsubscribe) return; 
-            const q = query(collection(window.firebaseDb, "chat_messages"), orderBy("timestamp", "asc"));
+            const q = query(collection(db, "chat_messages"), orderBy("timestamp", "asc"));
             
             chatUnsubscribe = onSnapshot(q, (snapshot) => {
                 const container = document.getElementById('chat-messages-container');
@@ -1125,7 +1129,7 @@
             renderPosts();
 
             try {
-                const postRef = doc(window.firebaseDb, "posts", postId);
+                const postRef = doc(db, "posts", postId);
                 await updateDoc(postRef, { likes: post.likes });
             } catch (error) {
                 console.error("خطأ في تحديث الإعجاب:", error);
@@ -1152,7 +1156,7 @@
             renderPosts();
 
             try {
-                const postRef = doc(window.firebaseDb, "posts", postId);
+                const postRef = doc(db, "posts", postId);
                 await updateDoc(postRef, { comments: post.comments });
             } catch (error) {
                 console.error("خطأ في إضافة التعليق:", error);
@@ -1160,7 +1164,7 @@
         }
 
         function listenToPostsFromFirebase() {
-            const q = query(collection(window.firebaseDb, "posts"), orderBy("timestamp", "desc"));
+            const q = query(collection(db, "posts"), orderBy("timestamp", "desc"));
             onSnapshot(q, (snapshot) => {
                 let fetchedPosts = [];
                 snapshot.forEach((doc) => {
@@ -1236,7 +1240,7 @@
                     else throw new Error("فشل رفع مقطع الفيديو");
                 }
 
-                addDoc(collection(window.firebaseDb, "posts"), {
+                await addDoc(collection(db, "posts"), {
                     author: currentUser.username,
                     badge: isBypassActive ? "وضع تجريبي" : "رائد وباني",
                     badgeColor: isBypassActive ? "bg-yellow-500/10 text-yellow-400" : "bg-green-500/10 text-green-400",
@@ -1247,7 +1251,7 @@
                     timestamp: serverTimestamp(),
                     likes: 0,
                     comments: []
-                }).catch(err => console.error("Firestore error:", err));
+                });
 
                 if (postInput) postInput.value = "";
                 window.removeVideoSelection();
@@ -1270,7 +1274,20 @@
             if (!container) return;
             container.innerHTML = "";
             
-            posts.forEach(post => {
+            let filteredPosts = posts;
+            if (searchQuery) {
+                filteredPosts = posts.filter(p => 
+                    p.content.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                    p.author.toLowerCase().includes(searchQuery.toLowerCase())
+                );
+            }
+
+            if (filteredPosts.length === 0) {
+                container.innerHTML = `<div class="bg-[#120e07] border-2 border-[#e5a93b]/30 rounded-2xl p-8 text-center text-gray-400 text-xs">لا توجد منشورات تطابق بحثك.</div>`;
+                return;
+            }
+
+            filteredPosts.forEach(post => {
                 let mediaHTML = '';
                 if (post.video) {
                     mediaHTML = `<div class="mt-3 rounded-xl overflow-hidden border border-[#e5a93b]/40 bg-black max-h-80 flex justify-center items-center"><video class="w-full max-h-80" controls src="${post.video}"></video></div>`;
@@ -1385,6 +1402,7 @@
                 
                 updateUserProfileDOM();
                 safeSetItem('piecho_user_v2', JSON.stringify(currentUser));
+                await saveProfileToFirebase(currentUser);
                 window.closeEditProfileModal();
             } catch (error) {
                 alert("حدث خطأ أثناء الرفع.");

@@ -1728,7 +1728,7 @@
             }
         }
 
-        function showSuccessModal(amount, recipient) {
+               function showSuccessModal(amount, recipient) {
             const modal = document.getElementById('success-modal');
             const desc = document.getElementById('success-modal-desc');
             if (desc) desc.innerText = `تم إرسال ${amount} Pi بنجاح إلى ${recipient || 'المستخدم'}.`;
@@ -1740,13 +1740,12 @@
             if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
         };
 
-        window.openSupportModalForUser = function(authorName, postId) {
-            activeRecipientName = authorName;
+        window.openSupportModalForUser = function(recipientName, postId) {
+            activeRecipientName = recipientName;
             activePostIdForTip = postId;
-
-            const modal = document.getElementById('payment-modal');
             const desc = document.getElementById('modal-desc');
-            if (desc) desc.innerText = `تقديم دعم مالي مباشر لـ ${authorName} مكافأة على هذا المنشور القيم.`;
+            if (desc) desc.innerText = `تقديم دعم مالي باستخدام عملة Pi للرائد: ${recipientName}`;
+            const modal = document.getElementById('payment-modal');
             if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); }
         };
 
@@ -1756,53 +1755,57 @@
         };
 
         window.executePiPayment = function() {
-            const amountInput = document.getElementById('tip-amount');
-            const amount = amountInput ? parseFloat(amountInput.value) : 1.0;
-
-            if (isNaN(amount) || amount <= 0) {
-                alert("يرجى إدخال مبلغ صحيح للدعم!");
-                return;
-            }
-
-            window.closeSupportModal();
+            const tipAmountInput = document.getElementById('tip-amount');
+            const amount = parseFloat(tipAmountInput ? tipAmountInput.value : "1.0") || 1.0;
 
             if (typeof Pi !== 'undefined' && currentUser.isPiAuthenticated && !isBypassActive) {
                 const paymentData = {
                     amount: amount,
-                    memo: `دعم رائد في Pi Echo إلى ${activeRecipientName}`,
+                    memo: `دعم للرائد ${activeRecipientName || 'مستخدم Pi Echo'} عبر Pi Echo`,
                     metadata: { postId: activePostIdForTip, recipient: activeRecipientName }
                 };
 
-                const callbacks = {
+                const paymentCallbacks = {
                     onReadyForServerApproval: function(paymentId) {
-                        console.log("جاهز لموافقة السيرفر:", paymentId);
+                        console.log("دفعة جاهزة لموافقة السيرفر:", paymentId);
                         approvePaymentOnServer(paymentId);
                     },
                     onReadyForServerCompletion: function(paymentId, txid) {
-                        console.log("جاهز لإكمال السيرفر:", paymentId, txid);
+                        console.log("دفعة مكتملة، جاري التوثيق:", paymentId, txid);
                         completePaymentOnServer(paymentId, txid);
+                        window.closeSupportModal();
                         showSuccessModal(amount, activeRecipientName);
                     },
                     onCancel: function(paymentId) {
+                        console.log("تم إلغاء عملية الدفع من قبل المستخدم:", paymentId);
                         alert("تم إلغاء عملية الدفع.");
                     },
                     onError: function(error, payment) {
-                        console.error("خطأ في عملية الدفع:", error, payment);
-                        alert("حدث خطأ أثناء تنفيذ الدفع عبر SDK.");
+                        console.error("حدث خطأ أثناء الدفع عبر Pi SDK:", error, payment);
+                        alert("حدث خطأ أثناء إتمام عملية الدفع.");
                     }
                 };
 
-                // استدعاء دالة الدفع الفعلية في Pi SDK
-                Pi.createPayment(paymentData, callbacks);
+                try {
+                    Pi.createPayment(paymentData, paymentCallbacks);
+                } catch (err) {
+                    console.error("فشل استدعاء Pi.createPayment:", err);
+                    alert("تعذر فتح بوابة الدفع الآمنة.");
+                }
             } else {
-                // وضع التخطي أو التجريبي
+                // الوضع التجريبي (Bypass Mode)
+                window.closeSupportModal();
                 showSuccessModal(amount, activeRecipientName);
             }
         };
 
-        // تشغيل التطبيق
-        document.addEventListener('DOMContentLoaded', initApp);
-        initApp();
+        // تشغيل التهيئة عند اكتمال تحميل عناصر الصفحة
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initApp);
+        } else {
+            initApp();
+        }
     </script>
 </body>
 </html>
+ 

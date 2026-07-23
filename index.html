@@ -761,6 +761,13 @@
 
         function onIncompletePaymentFound(payment) {
             console.log("⚠️ تم العثور على دفعة معلقة/غير مكتملة:", payment);
+            if (payment && payment.identifier) {
+                if (payment.transaction && payment.transaction.txid) {
+                    completePaymentOnServer(payment.identifier, payment.transaction.txid);
+                } else {
+                    approvePaymentOnServer(payment.identifier);
+                }
+            }
         }
 
         window.handleStatusClick = function() {
@@ -1686,6 +1693,53 @@
         };
 
         /* --- معاملات الدفع عبر شبكة باي --- */
+        const PI_SERVER_API_KEY = ""; // ضع مفتاح Server API Key الخاص بك هنا إن وجد للموافقة التلقائية
+
+        async function approvePaymentOnServer(paymentId) {
+            console.log("جاري الموافقة على الدفع:", paymentId);
+            if (!PI_SERVER_API_KEY) return;
+            try {
+                await fetch(`https://api.minepi.com/v2/payments/${paymentId}/approve`, {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Key ${PI_SERVER_API_KEY}`,
+                        "Content-Type": "application/json"
+                    }
+                });
+            } catch (err) {
+                console.error("خطأ في موافقة الدفعة:", err);
+            }
+        }
+
+        async function completePaymentOnServer(paymentId, txid) {
+            console.log("جاري إكمال الدفع:", paymentId, txid);
+            if (!PI_SERVER_API_KEY) return;
+            try {
+                await fetch(`https://api.minepi.com/v2/payments/${paymentId}/complete`, {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Key ${PI_SERVER_API_KEY}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ txid: txid })
+                });
+            } catch (err) {
+                console.error("خطأ في إكمال الدفعة:", err);
+            }
+        }
+
+        function showSuccessModal(amount, recipient) {
+            const modal = document.getElementById('success-modal');
+            const desc = document.getElementById('success-modal-desc');
+            if (desc) desc.innerText = `تم إرسال ${amount} Pi بنجاح إلى ${recipient || 'المستخدم'}.`;
+            if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); }
+        }
+
+        window.closeSuccessModal = function() {
+            const modal = document.getElementById('success-modal');
+            if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+        };
+
         window.openSupportModalForUser = function(authorName, postId) {
             activeRecipientName = authorName;
             activePostIdForTip = postId;
@@ -1722,46 +1776,32 @@
                 const callbacks = {
                     onReadyForServerApproval: function(paymentId) {
                         console.log("جاهز لموافقة السيرفر:", paymentId);
+                        approvePaymentOnServer(paymentId);
                     },
                     onReadyForServerCompletion: function(paymentId, txid) {
                         console.log("جاهز لإكمال السيرفر:", paymentId, txid);
+                        completePaymentOnServer(paymentId, txid);
                         showSuccessModal(amount, activeRecipientName);
                     },
                     onCancel: function(paymentId) {
                         alert("تم إلغاء عملية الدفع.");
                     },
                     onError: function(error, payment) {
-                        console.error("خطأ الدفع:", error);
-                        alert("حدث خطأ أثناء تنفيذ عملية الدفع.");
+                        console.error("خطأ في عملية الدفع:", error, payment);
+                        alert("حدث خطأ أثناء تنفيذ الدفع عبر SDK.");
                     }
                 };
 
-                try {
-                    Pi.createPayment(paymentData, callbacks);
-                } catch (e) {
-                    console.error(e);
-                    showSuccessModal(amount, activeRecipientName);
-                }
+                // استدعاء دالة الدفع الفعلية في Pi SDK
+                Pi.createPayment(paymentData, callbacks);
             } else {
-                setTimeout(() => {
-                    showSuccessModal(amount, activeRecipientName);
-                }, 500);
+                // وضع التخطي أو التجريبي
+                showSuccessModal(amount, activeRecipientName);
             }
         };
 
-        function showSuccessModal(amount, recipient) {
-            const modal = document.getElementById('success-modal');
-            const desc = document.getElementById('success-modal-desc');
-            if (desc) desc.innerText = `تم إرسال ${amount} Pi بنجاح إلى الرائد ${recipient || 'أبو كريم'}.`;
-            if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); }
-        }
-
-        window.closeSuccessModal = function() {
-            const modal = document.getElementById('success-modal');
-            if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
-        };
-
         // تشغيل التطبيق
+        document.addEventListener('DOMContentLoaded', initApp);
         initApp();
     </script>
 </body>

@@ -1,0 +1,1481 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pi Echo</title>
+    <link class="rounded-full" rel="icon" type="image/png" href="eagle-logo.png">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: #0b0713;
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #160d24; }
+        ::-webkit-scrollbar-thumb { background: #e5a93b; border-radius: 10px; }
+        .voice-wave { display: flex; align-items: center; gap: 3px; height: 30px; }
+        .voice-bar {
+            width: 4px; height: 100%; background-color: #e5a93b; border-radius: 10px;
+            animation: bounce 0.8s ease-in-out infinite alternate;
+        }
+        .voice-bar:nth-child(2) { animation-delay: 0.2s; height: 60%; }
+        .voice-bar:nth-child(3) { animation-delay: 0.4s; height: 30%; }
+        .voice-bar:nth-child(4) { animation-delay: 0.1s; height: 80%; }
+        .voice-bar:nth-child(5) { animation-delay: 0.3s; height: 50%; }
+
+        @keyframes bounce {
+            0% { transform: scaleY(0.3); }
+            100% { transform: scaleY(1.1); }
+        }
+
+        .mobile-footer {
+            position: fixed; bottom: 16px; left: 16px; right: 16px; z-index: 45;
+            background: linear-gradient(135deg, #1b0f2e, #130a21); border: 2px solid #e5a93b; border-radius: 20px;
+            box-shadow: 0 4px 25px rgba(229, 169, 59, 0.25);
+            padding-top: 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom));
+            display: flex; justify-content: space-around; align-items: center;
+        }
+    </style>
+</head>
+<body class="text-gray-100">
+
+    <header class="sticky top-0 z-40 bg-gradient-to-l from-[#1b0f2e] via-[#160d24] to-[#130a21] border-b-2 border-[#e5a93b] shadow-[0_4px_20px_rgba(229,169,59,0.15)] px-4 lg:px-8 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <button onclick="window.toggleMobileSidebar()" class="md:hidden text-[#e5a93b] hover:text-yellow-400 text-xl transition-all ml-1" title="القائمة">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+            <img src="eagle-logo.png" alt="Pi Echo Logo" class="w-10 h-10 rounded-full border border-[#e5a93b]/40 object-cover shadow-md">
+            <span class="text-xl font-extrabold tracking-wider bg-gradient-to-r from-[#e5a93b] to-yellow-400 bg-clip-text text-transparent">Pi Echo</span>
+        </div>
+
+        <div class="hidden md:flex items-center bg-[#24153b] rounded-full px-4 py-1.5 w-96 border border-[#e5a93b]/30 focus-within:border-[#e5a93b] transition-all">
+            <i class="fa-solid fa-magnifying-glass text-gray-400 ml-2"></i>
+            <input type="text" id="global-search-input" placeholder="ابحث عن منشورات أو رواد..." class="bg-transparent border-none outline-none text-sm w-full text-gray-200 placeholder-gray-500" oninput="window.handleGlobalSearch(this.value)">
+        </div>
+
+        <div class="flex items-center gap-4">
+            <button class="relative p-2 text-gray-300 hover:text-[#e5a93b] transition-colors" onclick="alert('لا توجد إشعارات جديدة حالياً.')">
+                <i class="fa-regular fa-bell text-xl"></i>
+                <span class="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+            </button>
+            <div id="pi-status-container" class="flex items-center gap-2 bg-[#24153b] border border-[#e5a93b]/50 rounded-full py-1.5 px-3 text-xs md:text-sm cursor-pointer hover:border-[#e5a93b]" onclick="window.handleStatusClick()">
+                <i id="pi-status-icon" class="fa-solid fa-wallet text-[#e5a93b]"></i>
+                <span id="user-pi-balance" class="text-gray-300 font-semibold">جاري تهيئة SDK...</span>
+            </div>
+            <img id="navbar-user-avatar" onclick="window.openEditProfileModal()" src="https://api.dicebear.com/7.x/bottts/svg?seed=AboKareem" alt="Avatar" class="w-9 h-9 rounded-full border border-[#e5a93b] cursor-pointer hover:scale-105 transition-transform object-cover">
+        </div>
+    </header>
+
+    <div id="mobile-sidebar-overlay" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden transition-opacity duration-300 opacity-0" onclick="window.toggleMobileSidebar()"></div>
+    
+    <aside id="mobile-sidebar" class="fixed top-0 right-0 h-full w-72 bg-gradient-to-b from-[#1b0f2e] to-[#120820] border-l-2 border-[#e5a93b] z-50 transform translate-x-full transition-transform duration-300 ease-in-out p-5 flex flex-col justify-between overflow-y-auto">
+        <div>
+            <div class="flex justify-between items-center pb-4 border-b border-[#e5a93b]/20 mb-4">
+                <span class="font-bold text-sm text-[#e5a93b]">Pi Echo</span>
+                <button onclick="window.toggleMobileSidebar()" class="text-gray-400 hover:text-white text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <div class="flex flex-col items-center text-center bg-[#24153b] p-4 rounded-xl border border-[#e5a93b]/30 mb-4">
+                <div class="relative">
+                    <img id="mobile-sidebar-avatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=AboKareem" alt="Avatar" class="w-16 h-16 rounded-full border-2 border-[#e5a93b] object-cover">
+                    <button onclick="window.openEditProfileModal(); window.toggleMobileSidebar();" class="absolute bottom-0 right-0 bg-[#e5a93b] text-[#0b0713] rounded-full p-1.5 text-[10px] hover:bg-yellow-500">
+                        <i class="fa-solid fa-pen"></i>
+                    </button>
+                </div>
+                <h3 id="mobile-sidebar-username" class="font-bold text-base text-gray-100 mt-2">أبو كريم</h3>
+                <p id="mobile-sidebar-bio" class="text-[11px] text-gray-400 mt-1 italic line-clamp-2">مهتم بتطوير مشاريع الويب 3 ودعم مجتمع باي في الوطن العربي.</p>
+            </div>
+
+            <nav class="space-y-1">
+                <a href="javascript:void(0)" onclick="window.toggleMobileSidebar()" class="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-gradient-to-l from-[#664b12]/40 to-transparent text-[#e5a93b] font-semibold border-r-4 border-[#e5a93b]">
+                    <i class="fa-solid fa-house text-base"></i>
+                    <span>الرئيسية</span>
+                </a>
+                <a href="javascript:void(0)" onclick="window.toggleMobileSidebar(); window.openExploreModal();" class="flex items-center gap-3 px-4 py-2.5 text-gray-300 hover:bg-[#24153b] hover:text-[#e5a93b] transition-all rounded-xl">
+                    <i class="fa-regular fa-compass text-base"></i>
+                    <span>استكشف</span>
+                </a>
+                <a href="javascript:void(0)" onclick="window.toggleMobileSidebar(); window.openChatModal();" class="flex items-center gap-3 px-4 py-2.5 text-gray-300 hover:bg-[#24153b] hover:text-[#e5a93b] transition-all rounded-xl">
+                    <i class="fa-regular fa-message text-base"></i>
+                    <span>الرسائل</span>
+                </a>
+                <hr class="border-[#e5a93b]/20 my-3">
+                <button onclick="window.openInviteModal(); window.toggleMobileSidebar();" class="w-full bg-gradient-to-r from-[#e5a93b] to-yellow-500 text-[#0b0713] font-bold py-2.5 px-4 rounded-xl shadow-md hover:from-yellow-500 hover:to-yellow-600 transition-all text-xs">
+                    <i class="fa-solid fa-user-plus ml-2"></i>دعوة صديق لباي
+                </button>
+            </nav>
+        </div>
+    </aside>
+
+    <div class="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 py-6 pb-28 md:pb-6 grid grid-cols-1 md:grid-cols-4 gap-6">
+
+        <aside class="hidden md:block md:col-span-1 space-y-4">
+            <div class="bg-gradient-to-b from-[#1b0f2e] to-[#130a21] p-5 rounded-2xl border-2 border-[#e5a93b] shadow-[0_0_15px_rgba(229,169,59,0.1)] space-y-4">
+                <div class="flex flex-col items-center text-center">
+                    <div class="relative group">
+                        <img id="sidebar-user-avatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=AboKareem" alt="Avatar" class="w-20 h-20 rounded-full border-2 border-[#e5a93b] shadow-md object-cover">
+                        <button onclick="window.openEditProfileModal()" class="absolute bottom-0 right-0 bg-[#e5a93b] text-[#0b0713] rounded-full p-2 text-xs hover:bg-yellow-500 transition-all shadow-md">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                    </div>
+                    <h3 id="sidebar-user-name" class="font-bold text-lg text-gray-100 mt-3">أبو كريم</h3>
+                    <p id="sidebar-user-bio" class="text-xs text-gray-400 mt-2 px-2 italic line-clamp-3">مهتم بتطوير مشاريع الويب 3 ودعم مجتمع باي في الوطن العربي.</p>
+                </div>
+                <div class="pt-3 border-t border-[#e5a93b]/30 flex justify-around text-center text-xs text-gray-400">
+                    <div><span class="block font-bold text-gray-100 text-sm">١.٢ ألف</span><span>متابع</span></div>
+                    <div class="border-l border-[#e5a93b]/30"></div>
+                    <div><span class="block font-bold text-gray-100 text-sm">٣٤٠</span><span>يتابع</span></div>
+                </div>
+            </div>
+
+            <nav class="space-y-1 bg-gradient-to-b from-[#1b0f2e] to-[#130a21] p-4 rounded-2xl border-2 border-[#e5a93b] shadow-[0_0_15px_rgba(229,169,59,0.1)]">
+                <a href="javascript:void(0)" class="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-l from-[#664b12]/40 to-transparent text-[#e5a93b] font-semibold border-r-4 border-[#e5a93b]">
+                    <i class="fa-solid fa-house text-lg"></i><span>الرئيسية</span>
+                </a>
+                <a href="javascript:void(0)" onclick="window.openExploreModal();" class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:bg-[#24153b] hover:text-[#e5a93b] transition-all">
+                    <i class="fa-regular fa-compass text-lg"></i><span>استكشف</span>
+                </a>
+                <a href="javascript:void(0)" onclick="window.openChatModal()" class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:bg-[#24153b] hover:text-[#e5a93b] transition-all">
+                    <i class="fa-regular fa-message text-lg"></i><span>الرسائل</span>
+                </a>
+                <hr class="border-[#e5a93b]/30 my-3">
+                <button onclick="window.openInviteModal()" class="w-full bg-gradient-to-r from-[#e5a93b] to-yellow-500 text-[#0b0713] font-bold py-2.5 px-4 rounded-xl shadow-md hover:from-yellow-500 hover:to-yellow-600 transition-all text-sm mb-3">
+                    <i class="fa-solid fa-user-plus ml-2"></i>دعوة صديق لباي
+                </button>
+            </nav>
+        </aside>
+
+        <main class="col-span-1 md:col-span-2 space-y-6">
+            <div class="bg-gradient-to-b from-[#1b0f2e] to-[#130a21] border-2 border-[#e5a93b] shadow-[0_0_15px_rgba(229,169,59,0.15)] rounded-2xl p-4">
+                <div class="flex gap-3">
+                    <img id="feed-post-avatar" src="https://api.dicebear.com/7.x/bottts?seed=AboKareem" alt="User Avatar" class="w-10 h-10 rounded-full border border-[#e5a93b]/40 object-cover">
+                    <div class="flex-1">
+                        <textarea id="post-input" placeholder="ماذا يدور في ذهنك اليوم يا رائد؟" rows="3" class="w-full bg-[#130a21] rounded-xl p-3 text-sm text-gray-200 placeholder-gray-500 border border-[#e5a93b]/30 focus:border-[#e5a93b] focus:outline-none resize-none transition-all"></textarea>
+                        
+                        <div id="image-preview-container" class="hidden relative mt-3 rounded-xl overflow-hidden border border-[#e5a93b]/40 bg-black max-h-60 flex justify-center items-center">
+                            <img id="image-preview" class="max-h-60 w-full object-cover" src="">
+                            <button onclick="window.removeImageSelection()" class="absolute top-2 left-2 bg-red-600/90 text-white hover:bg-red-700 transition-colors w-8 h-8 rounded-full flex items-center justify-center shadow-lg">
+                                <i class="fa-solid fa-trash text-xs"></i>
+                            </button>
+                        </div>
+
+                        <div id="video-preview-container" class="hidden relative mt-3 rounded-xl overflow-hidden border border-[#e5a93b]/40 bg-black max-h-60 flex justify-center items-center">
+                            <video id="video-preview" class="max-h-60 w-full" controls></video>
+                            <button onclick="window.removeVideoSelection()" class="absolute top-2 left-2 bg-red-600/90 text-white hover:bg-red-700 transition-colors w-8 h-8 rounded-full flex items-center justify-center shadow-lg">
+                                <i class="fa-solid fa-trash text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between mt-3 pt-3 border-t border-[#e5a93b]/20 relative">
+                    <div class="flex gap-2 text-gray-400">
+                        <button onclick="window.triggerImageUpload()" class="p-2 hover:bg-[#24153b] hover:text-[#e5a93b] rounded-lg transition-colors" title="إضافة صورة">
+                            <i class="fa-regular fa-image text-lg"></i>
+                        </button>
+                        <input type="file" id="post-image-file" accept="image/*" class="hidden" onchange="window.previewSelectedImage(event)">
+
+                        <button onclick="window.triggerVideoUpload()" class="p-2 hover:bg-[#24153b] hover:text-[#e5a93b] rounded-lg transition-colors" title="إضافة فيديو">
+                            <i class="fa-solid fa-video text-lg"></i>
+                        </button>
+                        <input type="file" id="post-video-file" accept="video/*" class="hidden" onchange="window.previewSelectedVideo(event)">
+                        
+                        <div class="relative">
+                            <button onclick="window.toggleEmojiPicker(event)" class="p-2 hover:bg-[#24153b] hover:text-[#e5a93b] rounded-lg transition-colors" title="إضافة شعارات ورموز تعبيرية">
+                                <i class="fa-regular fa-face-smile text-lg"></i>
+                            </button>
+                            <div id="emoji-picker" class="hidden absolute right-0 top-10 z-50 bg-[#1b0f2e] border-2 border-[#e5a93b] p-3 rounded-2xl grid grid-cols-4 gap-2 shadow-2xl w-48">
+                                <button onclick="window.appendEmoji('🥧')" class="hover:bg-[#24153b] p-1.5 rounded text-lg transition-colors" title="شعار باي">🥧</button>
+                                <button onclick="window.appendEmoji('🦅')" class="hover:bg-[#24153b] p-1.5 rounded text-lg transition-colors" title="شعار التطبيق (الصقر)">🦅</button>
+                                <button onclick="window.appendEmoji('🚀')" class="hover:bg-[#24153b] p-1.5 rounded text-lg transition-colors" title="صاروخ">🚀</button>
+                                <button onclick="window.appendEmoji('💎')" class="hover:bg-[#24153b] p-1.5 rounded text-lg transition-colors" title="جوهرة">💎</button>
+                                <button onclick="window.appendEmoji('⚡')" class="hover:bg-[#24153b] p-1.5 rounded text-lg transition-colors" title="برق">⚡</button>
+                                <button onclick="window.appendEmoji('🔥')" class="hover:bg-[#24153b] p-1.5 rounded text-lg transition-colors" title="نار">🔥</button>
+                                <button onclick="window.appendEmoji('❤️')" class="hover:bg-[#24153b] p-1.5 rounded text-lg transition-colors" title="قلب">❤️</button>
+                                <button onclick="window.appendEmoji('👍')" class="hover:bg-[#24153b] p-1.5 rounded text-lg transition-colors" title="إعجاب">👍</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button id="main-post-btn" onclick="window.createNewPost()" class="bg-[#e5a93b] text-[#0b0713] font-bold px-5 py-1.5 rounded-lg text-sm hover:bg-yellow-500 transition-all shadow-md shadow-[#e5a93b]/10">
+                        نشر المنشور
+                    </button>
+                </div>
+            </div>
+
+            <div id="feed-container" class="space-y-6"></div>
+        </main>
+
+        <aside class="hidden md:block md:col-span-1 space-y-6">
+            <div class="bg-gradient-to-b from-[#1b0f2e] to-[#130a21] border-2 border-[#e5a93b] shadow-[0_0_15px_rgba(229,169,59,0.15)] p-4 rounded-2xl space-y-4">
+                <h3 class="font-bold text-sm text-[#e5a93b] border-b border-[#e5a93b]/30 pb-2">
+                    <i class="fa-solid fa-microphone-lines ml-2 animate-pulse"></i>الدردشة الصوتية المباشرة
+                </h3>
+                <div class="p-3 bg-[#130a21] rounded-xl border border-[#e5a93b]/30 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-300 font-bold">روم رواد باي العرب 🎙️</span>
+                        <span class="text-[10px] bg-red-600/20 text-red-400 px-2 py-0.5 rounded-full">نشط</span>
+                    </div>
+                    <p class="text-[10px] text-gray-400 leading-relaxed">انضم الآن وناقش آخر مستجدات الشبكة المفتوحة والتجارة مع الرواد بالصوت مباشر!</p>
+                    <button onclick="window.openVoiceChatModal()" class="w-full bg-[#e5a93b] hover:bg-yellow-500 text-[#0b0713] font-bold py-2 rounded-lg text-xs transition-all shadow-md">
+                        <i class="fa-solid fa-headset ml-1"></i> انضمام للروم الصوتي
+                    </button>
+                </div>
+            </div>
+            
+            <div class="bg-gradient-to-b from-[#1b0f2e] to-[#130a21] border-2 border-[#e5a93b] shadow-[0_0_15px_rgba(229,169,59,0.15)] p-4 rounded-2xl space-y-4">
+                <h3 class="font-bold text-sm text-[#e5a93b] border-b border-[#e5a93b]/30 pb-2">
+                    <i class="fa-solid fa-circle-nodes ml-2"></i>أخبار الشبكة المفتوحة
+                </h3>
+                <div class="space-y-3">
+                    <div class="p-2.5 bg-[#130a21] rounded-xl hover:bg-[#24153b] transition-all cursor-pointer border border-transparent hover:border-[#e5a93b]/30">
+                        <h4 class="text-xs font-bold text-gray-200">الاستعداد للمرحلة القادمة</h4>
+                        <p class="text-[10px] text-gray-400 mt-1">تحديثات هامة لبروتوكول الـ SDK والمطورين...</p>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- نافذة استكشف المتقدمة -->
+    <div id="explore-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-gradient-to-b from-[#1b0f2e] to-[#130a21] border-2 border-[#e5a93b] rounded-3xl max-w-2xl w-full h-[85vh] flex flex-col shadow-[0_0_30px_rgba(229,169,59,0.3)] relative overflow-hidden">
+            <div class="p-4 bg-[#24153b] border-b border-[#e5a93b]/30 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-tr from-[#e5a93b] to-yellow-500 rounded-full flex items-center justify-center text-[#0b0713] font-bold">
+                        <i class="fa-regular fa-compass text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm text-[#e5a93b]">استكشف مجتمع باي 🧭</h3>
+                        <span class="text-[10px] text-gray-400">المنشورات الرائجة، الهاشتاجات، وأبرز الرواد والمطورين</span>
+                    </div>
+                </div>
+                <button onclick="window.closeExploreModal()" class="text-gray-400 hover:text-white text-lg p-2"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="flex border-b border-[#e5a93b]/20 bg-[#160d24] px-4 gap-4 text-xs font-semibold">
+                <button onclick="window.switchExploreTab('trending')" id="explore-tab-trending" class="py-3 text-[#e5a93b] border-b-2 border-[#e5a93b] transition-all">🔥 المنشورات الرائجة</button>
+                <button onclick="window.switchExploreTab('hashtags')" id="explore-tab-hashtags" class="py-3 text-gray-400 hover:text-[#e5a93b] transition-all">🏷️ الوسوم والهاشتاجات</button>
+                <button onclick="window.switchExploreTab('pioneers')" id="explore-tab-pioneers" class="py-3 text-gray-400 hover:text-[#e5a93b] transition-all">🦅 أبرز الرواد والمطورين</button>
+            </div>
+
+            <div class="flex-1 p-4 overflow-y-auto space-y-4 bg-[#0d0714]">
+                <div id="explore-content-trending" class="space-y-3"></div>
+                <div id="explore-content-hashtags" class="space-y-3 hidden">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div onclick="window.filterByHashtag('#PiNetwork')" class="p-3.5 bg-[#1b0f2e] border border-[#e5a93b]/30 rounded-xl cursor-pointer hover:border-[#e5a93b] transition-all">
+                            <span class="font-bold text-[#e5a93b] text-xs">#PiNetwork</span>
+                            <p class="text-[10px] text-gray-400 mt-1">الشبكة العالمية وأخبار العملة الرقمية</p>
+                        </div>
+                        <div onclick="window.filterByHashtag('#OpenMainnet')" class="p-3.5 bg-[#1b0f2e] border border-[#e5a93b]/30 rounded-xl cursor-pointer hover:border-[#e5a93b] transition-all">
+                            <span class="font-bold text-[#e5a93b] text-xs">#OpenMainnet</span>
+                            <p class="text-[10px] text-gray-400 mt-1">تحديثات الشبكة المفتوحة والتجارة</p>
+                        </div>
+                        <div onclick="window.filterByHashtag('#PiEcho')" class="p-3.5 bg-[#1b0f2e] border border-[#e5a93b]/30 rounded-xl cursor-pointer hover:border-[#e5a93b] transition-all">
+                            <span class="font-bold text-[#e5a93b] text-xs">#PiEcho</span>
+                            <p class="text-[10px] text-gray-400 mt-1">منصة الرواد والمطورين اللامركزية</p>
+                        </div>
+                        <div onclick="window.filterByHashtag('#Web3')" class="p-3.5 bg-[#1b0f2e] border border-[#e5a93b]/30 rounded-xl cursor-pointer hover:border-[#e5a93b] transition-all">
+                            <span class="font-bold text-[#e5a93b] text-xs">#Web3</span>
+                            <p class="text-[10px] text-gray-400 mt-1">تطبيقات البلوكشين الذكية والعقود</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="explore-content-pioneers" class="space-y-3 hidden">
+                    <div class="space-y-2">
+                        <div class="p-3.5 bg-[#1b0f2e] border border-[#e5a93b]/30 rounded-xl flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <img src="https://api.dicebear.com/7.x/bottts/svg?seed=AboKareem" class="w-10 h-10 rounded-full border border-[#e5a93b] object-cover">
+                                <div>
+                                    <h4 class="font-bold text-xs text-gray-100">أبو كريم (Abokareem999)</h4>
+                                    <p class="text-[10px] text-gray-400">مطور تطبيقات ويب 3 ومؤسس منصة Pi Echo</p>
+                                </div>
+                            </div>
+                            <span class="text-[10px] bg-amber-500/10 text-amber-400 px-2.5 py-1 rounded-full font-bold">باني رئيسي</span>
+                        </div>
+                        <div class="p-3.5 bg-[#1b0f2e] border border-[#e5a93b]/30 rounded-xl flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Ahmed" class="w-10 h-10 rounded-full border border-[#e5a93b]/40">
+                                <div>
+                                    <h4 class="font-bold text-xs text-gray-100">أحمد السوداني</h4>
+                                    <p class="text-[10px] text-gray-400">مستثمر ومحلل عملات رقمية وسوق باي</p>
+                                </div>
+                            </div>
+                            <span class="text-[10px] bg-green-500/10 text-green-400 px-2.5 py-1 rounded-full font-bold">رائد نشط</span>
+                        </div>
+                        <div class="p-3.5 bg-[#1b0f2e] border border-[#e5a93b]/30 rounded-xl flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah" class="w-10 h-10 rounded-full border border-[#e5a93b]/40">
+                                <div>
+                                    <h4 class="font-bold text-xs text-gray-100">سارة محمد</h4>
+                                    <p class="text-[10px] text-gray-400">مطورة واجهات وتصميم ثلاثي الأبعاد</p>
+                                </div>
+                            </div>
+                            <span class="text-[10px] bg-green-500/10 text-green-400 px-2.5 py-1 rounded-full font-bold">رائد نشط</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة السياسات والاتفاقيات الاحترافية -->
+    <div id="policy-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-gradient-to-b from-[#1b0f2e] to-[#130a21] border-2 border-[#e5a93b] rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-[0_0_30px_rgba(229,169,59,0.3)] relative">
+            <button onclick="window.closePolicyModal()" class="absolute top-4 left-4 text-gray-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+            <div class="flex items-center gap-3 pb-3 border-b border-[#e5a93b]/30">
+                <div class="w-10 h-10 bg-gradient-to-tr from-[#e5a93b] to-yellow-500 rounded-full flex items-center justify-center text-[#0b0713] font-bold">
+                    <i id="policy-modal-icon" class="fa-solid fa-shield-halved text-lg"></i>
+                </div>
+                <h3 id="policy-modal-title" class="text-lg font-bold text-[#e5a93b]">سياسة التطبيق</h3>
+            </div>
+            <div id="policy-modal-content" class="text-xs text-gray-300 leading-relaxed max-h-64 overflow-y-auto space-y-2 p-3 bg-[#130a21] rounded-xl border border-[#e5a93b]/20">
+                <!-- المحتوى يتغير ديناميكياً -->
+            </div>
+            <button onclick="window.closePolicyModal()" class="w-full bg-[#e5a93b] hover:bg-yellow-500 text-[#0b0713] font-bold py-2.5 rounded-xl transition-all shadow-md text-xs">إغلاق وفهم</button>
+        </div>
+    </div>
+
+    <footer class="w-full bg-gradient-to-r from-[#160d24] via-[#1b0f2e] to-[#160d24] border-t-2 border-[#e5a93b]/50 py-6 px-4 mt-auto text-center text-xs text-gray-400 space-y-3">
+        <div class="flex flex-wrap justify-center gap-6 text-[#e5a93b] font-semibold">
+            <a href="javascript:void(0)" onclick="window.openPolicyModal('privacy')" class="hover:underline">سياسة الخصوصية</a>
+            <a href="javascript:void(0)" onclick="window.openPolicyModal('terms')" class="hover:underline">شروط الاستخدام</a>
+            <a href="javascript:void(0)" onclick="window.openPolicyModal('disclaimer')" class="hover:underline">إخلاء المسؤولية</a>
+        </div>
+        <p class="text-gray-500">© 2026 Pi Echo. All rights reserved. Built for the Pi Network Community.</p>
+    </footer>
+
+    <footer class="md:hidden mobile-footer text-gray-400 text-xl">
+        <a href="javascript:void(0)" class="text-[#e5a93b]"><i class="fa-solid fa-house"></i></a>
+        <a href="javascript:void(0)" onclick="window.openVoiceChatModal()" class="hover:text-[#e5a93b]"><i class="fa-solid fa-microphone-lines"></i></a>
+        <a href="javascript:void(0)" class="hover:text-[#e5a93b]" onclick="window.openEditProfileModal()"><i class="fa-regular fa-user"></i></a>
+        <a href="javascript:void(0)" class="hover:text-[#e5a93b]" onclick="window.openChatModal()"><i class="fa-regular fa-message"></i></a>
+    </footer>
+
+    <div id="invite-modal" class="fixed inset-0 bg-black/75 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-gradient-to-b from-[#1b0f2e] to-[#130a21] border-2 border-[#e5a93b] rounded-3xl max-w-md w-full p-6 text-center space-y-5 shadow-2xl relative">
+            <button onclick="window.closeInviteModal()" class="absolute top-4 left-4 text-gray-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+            <div class="w-16 h-16 bg-gradient-to-tr from-[#e5a93b] to-yellow-500 rounded-full flex items-center justify-center mx-auto shadow-md">
+                <i class="fa-solid fa-user-plus text-[#0b0713] text-2xl"></i>
+            </div>
+            <div>
+                <h3 class="text-xl font-bold text-[#e5a93b]">دعوة صديق إلى شبكة باي 🥧</h3>
+                <p class="text-xs text-gray-400 mt-1">شارك رسالة الدعوة الخاصة بك مع أصدقائك</p>
+            </div>
+            <div class="bg-[#130a21] p-4 rounded-xl border border-[#e5a93b]/30 text-xs text-gray-200 text-right leading-relaxed select-all" id="invite-text-content">
+                الباي هي عملة رقمية جديدة تم تطويرها من طرف فريق من حاملي الدكتوراه من جامعة ستانفورد، مع أكثر من 55 مليون فرد حول العالم. للمشاركة معنا في باي ، إختر هذا الرابط https://minepi.com/Abokareem999 وإستخدم إسم المستخدم الخاص بي Abokareem999 ككود دعوة
+            </div>
+            <div class="flex gap-2">
+                <button onclick="window.copyInviteText()" class="flex-1 bg-[#e5a93b] hover:bg-yellow-500 text-[#0b0713] font-bold py-3 rounded-xl transition-all shadow-md text-xs flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-copy"></i> نسخ النص بالكامل
+                </button>
+                <button onclick="window.closeInviteModal()" class="bg-[#24153b] border border-[#e5a93b]/30 hover:border-[#e5a93b] text-gray-300 font-semibold px-5 py-3 rounded-xl text-xs transition-all">إغلاق</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="voice-chat-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-gradient-to-b from-[#1b0f2e] to-[#130a21] border-2 border-[#e5a93b] rounded-3xl max-w-md w-full p-6 text-center space-y-6 shadow-[0_0_30px_rgba(229,169,59,0.3)] relative">
+            <button onclick="window.closeVoiceChatModal()" class="absolute top-4 left-4 text-gray-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+            <div class="w-16 h-16 bg-gradient-to-tr from-[#e5a93b] to-yellow-500 rounded-full flex items-center justify-center mx-auto shadow-md">
+                <i class="fa-solid fa-microphone text-[#0b0713] text-3xl animate-bounce"></i>
+            </div>
+            <div>
+                <h3 class="text-xl font-bold text-[#e5a93b]">روم رواد باي العرب 🎙️</h3>
+                <span id="voice-connection-status" class="text-xs text-green-400 font-semibold block mt-1">🟡 جاري الاتصال بالروم...</span>
+            </div>
+            <div class="flex justify-center items-center py-4">
+                <div id="voice-bars-container" class="voice-wave hidden">
+                    <div class="voice-bar"></div><div class="voice-bar"></div><div class="voice-bar"></div><div class="voice-bar"></div><div class="voice-bar"></div>
+                </div>
+            </div>
+            <div class="space-y-2">
+                <h4 class="text-xs text-gray-400 text-right">الرواد النشطين بالصوت (3):</h4>
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="bg-[#130a21] p-2 rounded-xl border border-purple-900/50 flex flex-col items-center">
+                        <img id="voice-modal-avatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=AboKareem" class="w-8 h-8 rounded-full border border-[#e5a93b]">
+                        <span id="voice-modal-username" class="text-[9px] text-gray-300 mt-1 truncate w-full">أبو كريم (أنت)</span>
+                    </div>
+                    <div class="bg-[#130a21] p-2 rounded-xl border border-purple-900/50 flex flex-col items-center relative">
+                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Ahmed" class="w-8 h-8 rounded-full">
+                        <span class="text-[9px] text-gray-300 mt-1 truncate w-full">أحمد السوداني</span>
+                        <span class="absolute top-1 right-1 w-2.5 h-2.5 bg-green-500 rounded-full border border-black"></span>
+                    </div>
+                    <div class="bg-[#130a21] p-2 rounded-xl border border-purple-900/50 flex flex-col items-center relative">
+                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah" class="w-8 h-8 rounded-full">
+                        <span class="text-[9px] text-gray-300 mt-1 truncate w-full">سارة محمد</span>
+                        <span class="absolute top-1 right-1 w-2.5 h-2.5 bg-green-500 rounded-full border border-black"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-center gap-4 pt-4 border-t border-[#e5a93b]/20">
+                <button id="toggle-mic-btn" onclick="window.toggleMicrophone()" class="bg-[#24153b] border border-[#e5a93b]/40 hover:border-[#e5a93b] text-[#e5a93b] w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-md">
+                    <i id="mic-icon" class="fa-solid fa-microphone-slash text-lg"></i>
+                </button>
+                <button onclick="window.closeVoiceChatModal()" class="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2.5 rounded-full text-sm transition-all shadow-md">مغادرة الغرفة</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="chat-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-gradient-to-b from-[#1b0f2e] to-[#130a21] border-2 border-[#e5a93b] rounded-3xl max-w-lg w-full h-[80vh] flex flex-col shadow-[0_0_30px_rgba(229,169,59,0.3)] relative overflow-hidden">
+            <div class="p-4 bg-[#24153b] border-b border-[#e5a93b]/30 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-tr from-[#e5a93b] to-yellow-500 rounded-full flex items-center justify-center text-[#0b0713] font-bold">
+                        <i class="fa-regular fa-message text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm text-[#e5a93b]">الدردشة العامة للرواد 💬</h3>
+                        <span class="text-[10px] text-green-400 font-semibold flex items-center gap-1">
+                            <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> متصل الآن
+                        </span>
+                    </div>
+                </div>
+                <button onclick="window.closeChatModal()" class="text-gray-400 hover:text-white text-lg p-2"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="chat-messages-container" class="flex-1 p-4 overflow-y-auto space-y-3 bg-[#0d0714]"></div>
+            <div class="p-3 bg-[#24153b] border-t border-[#e5a93b]/30 flex gap-2 items-center">
+                <input type="text" id="chat-input" placeholder="اكتب رسالتك إلى الرواد..." class="flex-1 bg-[#130a21] border border-[#e5a93b]/30 rounded-xl px-4 py-2.5 text-xs text-gray-200 outline-none focus:border-[#e5a93b]" onkeypress="if(event.key === 'Enter') window.sendChatMessage()">
+                <button onclick="window.sendChatMessage()" class="bg-[#e5a93b] hover:bg-yellow-500 text-[#0b0713] font-bold px-5 py-2.5 rounded-xl text-xs transition-all shadow-md">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="profile-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-gradient-to-b from-[#1b0f2e] to-[#130a21] border-2 border-[#e5a93b] rounded-3xl max-w-md w-full p-6 space-y-6 shadow-2xl relative">
+            <button onclick="window.closeEditProfileModal()" class="absolute top-4 left-4 text-gray-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="text-xl font-bold text-[#e5a93b] text-center"><i class="fa-solid fa-user-gear ml-2"></i>تعديل الملف الشخصي</h3>
+            <div class="space-y-4">
+                <div class="flex flex-col items-center">
+                    <img id="modal-avatar-preview" src="" class="w-24 h-24 rounded-full border-2 border-[#e5a93b] object-cover mb-3">
+                    <label class="bg-[#24153b] hover:bg-[#301a52] text-[#e5a93b] border border-[#e5a93b]/30 px-4 py-1.5 rounded-xl text-xs cursor-pointer font-semibold transition-all">
+                        <i class="fa-solid fa-camera ml-1"></i> اختر صورة جديدة
+                        <input type="file" id="avatar-upload" accept="image/*" class="hidden" onchange="window.previewAvatarChange(event)">
+                    </label>
+                </div>
+                <div class="space-y-1">
+                    <label class="text-xs text-gray-400 block">الاسم الشخصي (الرائد)</label>
+                    <input type="text" id="edit-username" class="w-full bg-[#130a21] border border-[#e5a93b]/30 rounded-xl px-4 py-2.5 text-sm text-gray-200 outline-none focus:border-[#e5a93b]">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-xs text-gray-400 block">الوصف الشخصي (البايو)</label>
+                    <textarea id="edit-bio" rows="3" class="w-full bg-[#130a21] border border-[#e5a93b]/30 rounded-xl px-4 py-2.5 text-sm text-gray-200 outline-none focus:border-[#e5a93b] resize-none"></textarea>
+                </div>
+            </div>
+            <button onclick="window.saveUserProfile()" class="w-full bg-[#e5a93b] hover:bg-yellow-500 text-[#0b0713] font-bold py-3 rounded-xl transition-all shadow-md shadow-[#e5a93b]/10">حفظ التغييرات</button>
+        </div>
+    </div>
+
+    <div id="payment-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-gradient-to-b from-[#1b0f2e] to-[#130a21] border-2 border-[#e5a93b] rounded-3xl max-w-md w-full p-6 text-center space-y-6 shadow-2xl relative">
+            <button onclick="window.closeSupportModal()" class="absolute top-4 left-4 text-gray-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+            <div class="w-16 h-16 bg-gradient-to-tr from-[#664b12] to-[#e5a93b] rounded-full flex items-center justify-center mx-auto shadow-md">
+                <i class="fa-solid fa-pi text-white text-3xl animate-pulse"></i>
+            </div>
+            <div>
+                <h3 class="text-xl font-bold text-[#e5a93b]">بوابة دفع Pi Network</h3>
+                <p id="modal-desc" class="text-xs text-gray-400 mt-2 leading-relaxed"></p>
+                <div id="timer-display" class="mt-3 text-red-500 font-bold text-sm"></div>
+            </div>
+            <div id="amount-container" class="space-y-2">
+                <label class="text-xs text-gray-400 block">حدد قيمة الدعم بـ Pi:</label>
+                <input type="number" id="tip-amount" value="1.0" min="0.1" step="0.1" class="bg-[#130a21] border border-[#e5a93b]/30 rounded-xl px-4 py-2 text-center text-[#e5a93b] font-bold text-lg focus:outline-none focus:border-[#e5a93b] w-32 mx-auto block">
+            </div>
+            <div class="bg-[#130a21] p-3 rounded-xl border border-[#e5a93b]/20 text-[11px] text-amber-300 leading-relaxed">
+                💡 <strong>اتصال الويب 3 نشط:</strong> هذه العملية ستستدعي دالة الدفع الآمنة لتوقيع المعاملة ببصمة إصبعك أو عبارة المرور.
+            </div>
+            <button onclick="window.executePiPayment()" class="w-full bg-[#e5a93b] hover:bg-yellow-500 text-[#0b0713] font-bold py-3 rounded-xl transition-all shadow-md shadow-[#e5a93b]/10">تأكيد وإرسال عبر Pi SDK</button>
+        </div>
+    </div>
+
+    <div id="success-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-gradient-to-b from-[#1b0f2e] to-[#130a21] border-2 border-green-500 rounded-3xl max-w-md w-full p-6 text-center space-y-6 shadow-[0_0_30px_rgba(34,197,94,0.3)] relative">
+            <button onclick="window.closeSuccessModal()" class="absolute top-4 left-4 text-gray-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+            <div class="w-20 h-20 bg-gradient-to-tr from-green-600 to-emerald-400 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-green-500/30">
+                <i class="fa-solid fa-check text-[#0b0713] text-4xl"></i>
+            </div>
+            <div>
+                <div class="flex items-center justify-center gap-2 text-green-400 font-extrabold text-xl mb-1">
+                    <i class="fa-solid fa-pi text-2xl"></i>
+                    <span>تم الدعم بنجاح!</span>
+                </div>
+                <p id="success-modal-desc" class="text-xs text-gray-300 mt-2 leading-relaxed"></p>
+            </div>
+            <div class="bg-green-950/40 border border-green-500/30 p-3 rounded-xl text-xs text-green-300">
+                ✨ شكراً لك على دعم الرواد وإثراء مجتمع Pi Echo!
+            </div>
+            <button onclick="window.closeSuccessModal()" class="w-full bg-green-500 hover:bg-green-600 text-[#0b0713] font-bold py-3 rounded-xl transition-all shadow-md shadow-green-500/20">حسناً، شكراً لك</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, updateDoc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+        import { getStorage } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-storage.js";
+
+        const firebaseConfig = {
+          apiKey: "AIzaSyCyDmlRaqGY2C-PfKAKxL8GoYgg1qKiqDY",
+          authDomain: "echopi-1a87c.firebaseapp.com",
+          projectId: "echopi-1a87c",
+          storageBucket: "echopi-1a87c.firebasestorage.app",
+          messagingSenderId: "93575678453",
+          appId: "1:93575678453:web:95891b9d64a4abade5b8bc"
+        };
+
+        if (window.__piEchoAppInitialized === undefined) window.__piEchoAppInitialized = false;
+        if (window.__piEchoSDKInitializing === undefined) window.__piEchoSDKInitializing = false;
+
+        const firebaseApp = initializeApp(firebaseConfig);
+        const auth = getAuth(firebaseApp);
+        const db = getFirestore(firebaseApp);
+        const storage = getStorage(firebaseApp);
+
+        window.firebaseAuth = auth;
+        window.firebaseDb = db;
+        window.firebaseStorage = storage;
+
+        let paymentTimerInterval = null;
+
+        let currentUser = {
+            username: "أبو كريم",
+            avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=AboKareem",
+            bio: "مهتم بتطوير مشاريع الويب 3 ودعم مجتمع باي في الوطن العربي.",
+            isPiAuthenticated: false
+        };
+
+        let posts = [];
+        let activePostIdForTip = null;
+        let activeRecipientName = null;
+        
+        let selectedImageFile = null;
+        let selectedVideoFile = null;
+        let selectedAvatarFile = null;
+        
+        let piInitAttempts = 0;
+        let isBypassActive = false;
+        let isMicMuted = true;
+        let isConnectingVoice = false;
+        let searchQuery = "";
+
+        function safeGetItem(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+        function safeSetItem(key, value) { try { localStorage.setItem(key, value); } catch (e) {} }
+
+        function initApp() {
+            if (window.__piEchoAppInitialized) return;
+            window.__piEchoAppInitialized = true;
+
+            signInAnonymously(auth).catch(e => console.error("Firebase auth crash:", e));
+
+            const savedUser = safeGetItem('piecho_user_v2');
+            if (savedUser) {
+                try { currentUser = JSON.parse(savedUser); } catch(e) {}
+            }
+            updateUserProfileDOM();
+            listenToPostsFromFirebase();
+            startPiSDKInitialization();
+        }
+
+        async function saveProfileToFirebase(userObj) {
+            try {
+                const userRef = doc(db, "users", userObj.username);
+                await setDoc(userRef, {
+                    username: userObj.username,
+                    avatar: userObj.avatar,
+                    bio: userObj.bio,
+                    lastUpdated: serverTimestamp()
+                }, { merge: true });
+            } catch (err) {
+                console.error("Error saving profile to Firestore:", err);
+            }
+        }
+
+        function updateUserProfileDOM() {
+            const elements = {
+                navAvatar: document.getElementById('navbar-user-avatar'),
+                feedAvatar: document.getElementById('feed-post-avatar'),
+                sideAvatar: document.getElementById('sidebar-user-avatar'),
+                mobAvatar: document.getElementById('mobile-sidebar-avatar'),
+                voiceAvatar: document.getElementById('voice-modal-avatar'),
+                sideName: document.getElementById('sidebar-user-name'),
+                mobName: document.getElementById('mobile-sidebar-username'),
+                voiceName: document.getElementById('voice-modal-username'),
+                sideBio: document.getElementById('sidebar-user-bio'),
+                mobBio: document.getElementById('mobile-sidebar-bio')
+            };
+
+            if (elements.navAvatar) elements.navAvatar.src = currentUser.avatar;
+            if (elements.feedAvatar) elements.feedAvatar.src = currentUser.avatar;
+            if (elements.sideAvatar) elements.sideAvatar.src = currentUser.avatar;
+            if (elements.mobAvatar) elements.mobAvatar.src = currentUser.avatar;
+            if (elements.voiceAvatar) elements.voiceAvatar.src = currentUser.avatar;
+            
+            if (elements.sideName) elements.sideName.innerText = currentUser.username;
+            if (elements.mobName) elements.mobName.innerText = currentUser.username;
+            if (elements.voiceName) elements.voiceName.innerText = currentUser.username + " (أنت)";
+            if (elements.sideBio) elements.sideBio.innerText = currentUser.bio || "لا يوجد بايو محدد.";
+            if (elements.mobBio) elements.mobBio.innerText = currentUser.bio || "لا يوجد بايو محدد.";
+        }
+
+        window.toggleMobileSidebar = function() {
+            const sidebar = document.getElementById('mobile-sidebar');
+            const overlay = document.getElementById('mobile-sidebar-overlay');
+            if (!sidebar || !overlay) return;
+
+            if (sidebar.classList.contains('translate-x-full')) {
+                sidebar.classList.remove('translate-x-full');
+                sidebar.classList.add('translate-x-0');
+                overlay.classList.remove('hidden');
+                setTimeout(() => { overlay.classList.remove('opacity-0'); overlay.classList.add('opacity-100'); }, 10);
+            } else {
+                sidebar.classList.add('translate-x-full');
+                sidebar.classList.remove('translate-x-0');
+                overlay.classList.remove('opacity-100');
+                overlay.classList.add('opacity-0');
+                setTimeout(() => overlay.classList.add('hidden'), 300);
+            }
+        }
+
+        function updateSDKStatus(text, className = "text-gray-300") {
+            const balanceElement = document.getElementById('user-pi-balance');
+            if (balanceElement) {
+                balanceElement.innerText = text;
+                balanceElement.className = `font-semibold text-[10px] md:text-xs ${className}`;
+            }
+        }
+
+        function startPiSDKInitialization() {
+            if (window.__piEchoSDKInitializing) return;
+            window.__piEchoSDKInitializing = true;
+
+            const urlParams = new URLSearchParams(window.location.search);
+            let useSandbox = urlParams.has('sandbox') ? urlParams.get('sandbox') === 'true' : (window.self !== window.top || !navigator.userAgent.includes("Pi"));
+
+            updateSDKStatus(`⚙️ تهيئة (${useSandbox ? 'Sandbox' : 'رسمي'})...`, "text-yellow-500 animate-pulse");
+            
+            if (typeof Pi !== 'undefined') {
+                try {
+                    Pi.init({ version: "2.0", sandbox: useSandbox });
+                    updateSDKStatus("🔑 جاري المصادقة...", "text-amber-400");
+                    Pi.authenticate(['username', 'payments'], onIncompletePaymentFound)
+                    .then(function(authData) {
+                        currentUser.username = authData.user.username;
+                        currentUser.avatar = currentUser.avatar.includes('dicebear.com') ? `https://api.dicebear.com/7.x/bottts/svg?seed=${authData.user.username}` : currentUser.avatar;
+                        currentUser.isPiAuthenticated = true;
+                        updateUserProfileDOM();
+                        updateSDKStatus(`🟢 متصل: ${authData.user.username}`, "text-green-400");
+                        safeSetItem('piecho_user_v2', JSON.stringify(currentUser));
+                        saveProfileToFirebase(currentUser);
+                    }).catch(function(error) { 
+                        updateSDKStatus("⚠️ فشل الربط (اضغط للتخطي)", "text-red-400 hover:text-red-300"); 
+                    });
+                } catch (err) { 
+                    updateSDKStatus("⚠️ فشل الربط (اضغط للتخطي)", "text-red-400 hover:text-red-300"); 
+                }
+            } else {
+                piInitAttempts++;
+                if (piInitAttempts < 10) {
+                    window.__piEchoSDKInitializing = false;
+                    setTimeout(startPiSDKInitialization, 500);
+                } else {
+                    updateSDKStatus("⚠️ فشل الربط (اضغط للتخطي)", "text-red-400 hover:text-red-300");
+                }
+            }
+        }
+
+        function onIncompletePaymentFound(payment) {
+            console.log("⚠️ تم العثور على دفعة معلقة/غير مكتملة:", payment);
+            const BACKEND_URL = ""; 
+            
+            fetch(`${BACKEND_URL}/api/payments/approve`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ paymentId: payment.identifier })
+            }).then(res => res.json()).then(data => {
+                if (payment.transaction && payment.transaction.txid) {
+                    return fetch(`${BACKEND_URL}/api/payments/complete`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ paymentId: payment.identifier, txid: payment.transaction.txid })
+                    });
+                }
+            }).catch(err => console.error("خطأ في معالجة الدفعة المعلقة:", err));
+        }
+
+        window.handleStatusClick = function() {
+            if (currentUser.isPiAuthenticated || isBypassActive) {
+                alert(`أنت مسجل الدخول كـ: ${currentUser.username}`);
+                return;
+            }
+            if (confirm(`فشل ربط الحساب. هل ترغب في تفعيل "الوضع التجريبي" لتجربة التصفح بالكامل؟`)) {
+                isBypassActive = true;
+                currentUser.username = "رائد تجريبي (أبو كريم)";
+                currentUser.isPiAuthenticated = true; 
+                updateUserProfileDOM();
+                updateSDKStatus("🟢 وضع تجريبي (نشط)", "text-yellow-400");
+                saveProfileToFirebase(currentUser);
+                alert("تم تفعيل الوضع التجريبي بنجاح!");
+            }
+        }
+
+        window.openExploreModal = function() {
+            const modal = document.getElementById('explore-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                renderTrendingPostsInExplore();
+            }
+        }
+
+        window.closeExploreModal = function() {
+            const modal = document.getElementById('explore-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+        window.switchExploreTab = function(tabName) {
+            const trendingDiv = document.getElementById('explore-content-trending');
+            const hashtagsDiv = document.getElementById('explore-content-hashtags');
+            const pioneersDiv = document.getElementById('explore-content-pioneers');
+
+            const tabTrendingBtn = document.getElementById('explore-tab-trending');
+            const tabHashtagsBtn = document.getElementById('explore-tab-hashtags');
+            const tabPioneersBtn = document.getElementById('explore-tab-pioneers');
+
+            trendingDiv.classList.add('hidden');
+            hashtagsDiv.classList.add('hidden');
+            pioneersDiv.classList.add('hidden');
+
+            tabTrendingBtn.className = "py-3 text-gray-400 hover:text-[#e5a93b] transition-all";
+            tabHashtagsBtn.className = "py-3 text-gray-400 hover:text-[#e5a93b] transition-all";
+            tabPioneersBtn.className = "py-3 text-gray-400 hover:text-[#e5a93b] transition-all";
+
+            if (tabName === 'trending') {
+                trendingDiv.classList.remove('hidden');
+                tabTrendingBtn.className = "py-3 text-[#e5a93b] border-b-2 border-[#e5a93b] transition-all";
+                renderTrendingPostsInExplore();
+            } else if (tabName === 'hashtags') {
+                hashtagsDiv.classList.remove('hidden');
+                tabHashtagsBtn.className = "py-3 text-[#e5a93b] border-b-2 border-[#e5a93b] transition-all";
+            } else if (tabName === 'pioneers') {
+                pioneersDiv.classList.remove('hidden');
+                tabPioneersBtn.className = "py-3 text-[#e5a93b] border-b-2 border-[#e5a93b] transition-all";
+            }
+        }
+
+        function renderTrendingPostsInExplore() {
+            const container = document.getElementById('explore-content-trending');
+            if (!container) return;
+            
+            let sortedPosts = [...posts].sort((a, b) => b.likes - a.likes);
+            
+            if (sortedPosts.length === 0) {
+                container.innerHTML = `<div class="text-center py-10 text-gray-500 text-xs">لا توجد منشورات متاحة في الاستكشاف حالياً.</div>`;
+                return;
+            }
+
+            container.innerHTML = "";
+            sortedPosts.slice(0, 5).forEach(post => {
+                const itemHTML = `
+                    <div class="bg-[#1b0f2e] border border-[#e5a93b]/30 p-3.5 rounded-xl space-y-2">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <img src="${post.avatar}" class="w-7 h-7 rounded-full border border-[#e5a93b]/40 object-cover">
+                                <span class="font-bold text-xs text-gray-200">${post.author}</span>
+                            </div>
+                            <span class="text-[10px] text-red-400 flex items-center gap-1"><i class="fa-solid fa-heart"></i> ${post.likes} إعجاب</span>
+                        </div>
+                        <p class="text-xs text-gray-300 line-clamp-2">${post.content}</p>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', itemHTML);
+            });
+        }
+
+        window.filterByHashtag = function(tag) {
+            window.closeExploreModal();
+            searchQuery = tag;
+            const globalInput = document.getElementById('global-search-input');
+            if (globalInput) globalInput.value = tag;
+            renderPosts();
+        }
+
+        window.handleGlobalSearch = function(val) {
+            searchQuery = val.trim();
+            renderPosts();
+        }
+
+        window.openInviteModal = function() {
+            const modal = document.getElementById('invite-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+        }
+
+        window.closeInviteModal = function() {
+            const modal = document.getElementById('invite-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+        window.openPolicyModal = function(type) {
+            const modal = document.getElementById('policy-modal');
+            const titleEl = document.getElementById('policy-modal-title');
+            const contentEl = document.getElementById('policy-modal-content');
+            const iconEl = document.getElementById('policy-modal-icon');
+
+            if (!modal) return;
+
+            if (type === 'privacy') {
+                titleEl.innerText = "سياسة الخصوصية";
+                iconEl.className = "fa-solid fa-user-shield text-lg";
+                contentEl.innerHTML = `
+                    <p><strong>حماية بيانات الرواد:</strong> نلتزم في منصة Pi Echo التامة بحماية بياناتك الشخصية ومعلومات حسابك على شبكة باي وفقاً لأعلى معايير الأمان والخصوصية اللامركزية.</p>
+                    <p class="mt-2"><strong>استخدام البيانات:</strong> لا يتم مشاركة أي معلومات شخصية أو بيانات محفظتك مع أي جهات خارجية، وتُستخدم فقط لتحسين تجربة المستخدم داخل مجتمع الرواد.</p>
+                `;
+            } else if (type === 'terms') {
+                titleEl.innerText = "شروط الاستخدام";
+                iconEl.className = "fa-solid fa-file-contract text-lg";
+                contentEl.innerHTML = `
+                    <p><strong>شروط الانضمام:</strong> هذا التطبيق مخصص حصرياً لمجتمع باي نتورك (Pi Network) ويخضع لشروط وأحكام شبكة باي العالمية.</p>
+                    <p class="mt-2"><strong>سلوك المجتمع:</strong> يُمنع نشر أي محتوى مسيء، احتيالي، أو مخالف للآداب العامة، ويحق للإدارة حماية بيئة الرواد النظيفة.</p>
+                `;
+            } else if (type === 'disclaimer') {
+                titleEl.innerText = "إخلاء المسؤولية";
+                iconEl.className = "fa-solid fa-triangle-exclamation text-lg";
+                contentEl.innerHTML = `
+                    <p><strong>صفحة المجتمع:</strong> Pi Echo هو تطبيق مجتمعي لامركزي مطور بواسطة رواد شبكة باي، وهو غير تابع رسمياً لفريق Core Team بشكل مباشر.</p>
+                    <p class="mt-2"><strong>المعاملات المالية:</strong> كافة التحويلات عبر SDK تتم في بيئة شبكة باي وتخضع لشفافية البلوكشين الكاملة ومسؤولية المستخدم.</p>
+                `;
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        window.closePolicyModal = function() {
+            const modal = document.getElementById('policy-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+        window.copyInviteText = function() {
+            const text = "الباي هي عملة رقمية جديدة تم تطويرها من طرف فريق من حاملي الدكتوراه من جامعة ستانفورد، مع أكثر من 55 مليون فرد حول العالم. للمشاركة معنا في باي ، إختر هذا الرابط https://minepi.com/Abokareem999 وإستخدم إسم المستخدم الخاص بي Abokareem999 ككود دعوة";
+            navigator.clipboard.writeText(text).then(() => {
+                alert("تم نسخ نص الدعوة بنجاح! يمكنك مشاركته الآن 🚀");
+            }).catch(err => {
+                console.error("فشل النسخ:", err);
+            });
+        }
+
+        window.triggerImageUpload = function() { document.getElementById('post-image-file').click(); }
+        window.previewSelectedImage = function(event) {
+            window.removeVideoSelection(); 
+            const file = event.target.files[0];
+            if (file) {
+                selectedImageFile = file; 
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('image-preview').src = e.target.result;
+                    document.getElementById('image-preview-container').classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+        window.removeImageSelection = function() {
+            selectedImageFile = null;
+            document.getElementById('post-image-file').value = "";
+            document.getElementById('image-preview').src = "";
+            document.getElementById('image-preview-container').classList.add('hidden');
+        }
+
+        window.triggerVideoUpload = function() { document.getElementById('post-video-file').click(); }
+        window.previewSelectedVideo = function(event) {
+            window.removeImageSelection(); 
+            const file = event.target.files[0];
+            if (file) {
+                selectedVideoFile = file; 
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('video-preview').src = e.target.result;
+                    document.getElementById('video-preview-container').classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+        window.removeVideoSelection = function() {
+            selectedVideoFile = null;
+            document.getElementById('post-video-file').value = "";
+            document.getElementById('video-preview').src = "";
+            document.getElementById('video-preview-container').classList.add('hidden');
+        }
+
+        window.toggleEmojiPicker = function(event) {
+            event.preventDefault();
+            const picker = document.getElementById('emoji-picker');
+            picker.classList.toggle('hidden');
+        }
+        window.appendEmoji = function(emoji) {
+            const input = document.getElementById('post-input');
+            input.value += emoji;
+            document.getElementById('emoji-picker').classList.add('hidden');
+        }
+
+        window.openVoiceChatModal = function() {
+            document.getElementById('voice-chat-modal').classList.remove('hidden');
+            document.getElementById('voice-chat-modal').classList.add('flex');
+            isConnectingVoice = true;
+            document.getElementById('voice-connection-status').innerText = "🟡 جاري الاتصال بالروم...";
+            document.getElementById('voice-bars-container').classList.add('hidden');
+            
+            setTimeout(() => {
+                isConnectingVoice = false;
+                document.getElementById('voice-connection-status').innerText = "🟢 متصل - يمكنك التحدث الآن";
+                document.getElementById('voice-connection-status').className = "text-xs text-green-400 font-semibold block mt-1";
+                if(!isMicMuted) {
+                    document.getElementById('voice-bars-container').classList.remove('hidden');
+                }
+            }, 1500);
+        }
+
+        window.closeVoiceChatModal = function() {
+            document.getElementById('voice-chat-modal').classList.add('hidden');
+            document.getElementById('voice-chat-modal').classList.remove('flex');
+            isMicMuted = true;
+            updateMicUI();
+            document.getElementById('voice-bars-container').classList.add('hidden');
+            document.getElementById('voice-connection-status').className = "text-xs text-green-400 font-semibold block mt-1";
+        }
+
+        window.toggleMicrophone = function() {
+            if(isConnectingVoice) return;
+            isMicMuted = !isMicMuted;
+            updateMicUI();
+            if(!isMicMuted) {
+                document.getElementById('voice-bars-container').classList.remove('hidden');
+            } else {
+                document.getElementById('voice-bars-container').classList.add('hidden');
+            }
+        }
+
+        function updateMicUI() {
+            const micBtn = document.getElementById('toggle-mic-btn');
+            const micIcon = document.getElementById('mic-icon');
+            if(isMicMuted) {
+                micBtn.className = "bg-[#24153b] border border-[#e5a93b]/40 hover:border-[#e5a93b] text-[#e5a93b] w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-md";
+                micIcon.className = "fa-solid fa-microphone-slash text-lg";
+            } else {
+                micBtn.className = "bg-[#e5a93b] text-[#0b0713] w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-md shadow-[#e5a93b]/30";
+                micIcon.className = "fa-solid fa-microphone text-lg";
+            }
+        }
+
+        window.openChatModal = function() {
+            const modal = document.getElementById('chat-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                listenToChatMessages();
+            }
+        }
+
+        window.closeChatModal = function() {
+            const modal = document.getElementById('chat-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+        window.sendChatMessage = async function() {
+            const input = document.getElementById('chat-input');
+            if (!input) return;
+            const text = input.value.trim();
+            if (!text) return;
+
+            try {
+                await addDoc(collection(db, "chat_messages"), {
+                    author: currentUser.username,
+                    avatar: currentUser.avatar,
+                    content: text,
+                    timestamp: serverTimestamp()
+                });
+                input.value = "";
+            } catch (error) {
+                console.error("خطأ في إرسال الرسالة:", error);
+                alert("فشل إرسال الرسالة، تحقق من الاتصال.");
+            }
+        }
+
+        let chatUnsubscribe = null;
+        function listenToChatMessages() {
+            if (chatUnsubscribe) return; 
+            const q = query(collection(db, "chat_messages"), orderBy("timestamp", "asc"));
+            
+            chatUnsubscribe = onSnapshot(q, (snapshot) => {
+                const container = document.getElementById('chat-messages-container');
+                if (!container) return;
+                container.innerHTML = "";
+
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const isMe = data.author === currentUser.username;
+                    let timeStr = "الآن";
+                    if (data.timestamp && typeof data.timestamp.seconds !== 'undefined') {
+                        timeStr = new Date(data.timestamp.seconds * 1000).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+                    }
+
+                    const messageHTML = `
+                        <div class="flex items-start gap-2.5 ${isMe ? 'flex-row-reverse' : ''}">
+                            <img src="${data.avatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=Pioneer'}" class="w-8 h-8 rounded-full border border-[#e5a93b]/40 object-cover">
+                            <div class="max-w-[75%] bg-[#1b0f2e] border ${isMe ? 'border-[#e5a93b]/50' : 'border-[#e5a93b]/20'} p-3 rounded-2xl space-y-1">
+                                <div class="flex items-center justify-between gap-3">
+                                    <span class="text-[10px] font-bold text-[#e5a93b]">${data.author}</span>
+                                    <span class="text-[9px] text-gray-500">${timeStr}</span>
+                                </div>
+                                <p class="text-xs text-gray-200 leading-relaxed whitespace-pre-line">${data.content}</p>
+                            </div>
+                        </div>
+                    `;
+                    container.insertAdjacentHTML('beforeend', messageHTML);
+                });
+                container.scrollTop = container.scrollHeight;
+            });
+        }
+
+        window.openSupportModal = function(postId, authorName) {
+            activePostIdForTip = postId;
+            activeRecipientName = authorName;
+            document.getElementById('modal-desc').innerText = `أنت على وشك إرسال دعم مباشر بـ Pi إلى: ${authorName}`;
+            document.getElementById('payment-modal').classList.remove('hidden');
+            document.getElementById('payment-modal').classList.add('flex');
+            
+            startPaymentTimer(180);
+        }
+
+        function startPaymentTimer(seconds) {
+            const display = document.getElementById('timer-display');
+            let timeLeft = seconds;
+            
+            if(paymentTimerInterval) clearInterval(paymentTimerInterval);
+            
+            paymentTimerInterval = setInterval(() => {
+                const mins = Math.floor(timeLeft / 60);
+                const secs = timeLeft % 60;
+                display.innerText = `تنتهي مهلة الدفع خلال: ${mins}:${secs < 10 ? '0' : ''}${secs}`;
+                
+                if (timeLeft <= 0) {
+                    clearInterval(paymentTimerInterval);
+                    alert("عذراً، انتهت مهلة الدفع. يرجى المحاولة مرة أخرى.");
+                    window.closeSupportModal();
+                }
+                timeLeft--;
+            }, 1000);
+        }
+
+        window.closeSupportModal = function() {
+            if(paymentTimerInterval) clearInterval(paymentTimerInterval);
+            document.getElementById('payment-modal').classList.add('hidden');
+            document.getElementById('payment-modal').classList.remove('flex');
+            activePostIdForTip = null;
+            activeRecipientName = null;
+        }
+
+        window.openSuccessModal = function(msgText) {
+            document.getElementById('success-modal-desc').innerText = msgText;
+            document.getElementById('success-modal').classList.remove('hidden');
+            document.getElementById('success-modal').classList.add('flex');
+        }
+
+        window.closeSuccessModal = function() {
+            document.getElementById('success-modal').classList.add('hidden');
+            document.getElementById('success-modal').classList.remove('flex');
+        }
+
+        window.executePiPayment = function() {
+            const amount = parseFloat(document.getElementById('tip-amount').value);
+            if(isNaN(amount) || amount <= 0) {
+                alert("يرجى إدخال مبلغ صحيح");
+                return;
+            }
+
+            if(isBypassActive) {
+                window.closeSupportModal();
+                window.openSuccessModal(`تم إرسال ${amount} Pi إلى ${activeRecipientName} بنجاح! شكراً لدعمك.`);
+                return;
+            }
+
+            if(!currentUser.isPiAuthenticated || typeof Pi === 'undefined') {
+                alert("يرجى ربط محفظة Pi أولاً عبر فتح التطبيق من Pi Browser.");
+                return;
+            }
+
+            const BACKEND_URL = ""; 
+
+            Pi.createPayment({
+                amount: amount,
+                memo: `دعم المنشور للرائد ${activeRecipientName}`,
+                metadata: { postId: activePostIdForTip }
+            }, {
+                onReadyForServerApproval: function(paymentId) { 
+                    fetch(`${BACKEND_URL}/api/payments/approve`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ paymentId: paymentId })
+                    }).catch(error => console.error("خطأ في الاتصال بالمخادم للموافقة:", error));
+                },
+                onReadyForServerCompletion: function(paymentId, txid) {
+                    fetch(`${BACKEND_URL}/api/payments/complete`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ paymentId: paymentId, txid: txid })
+                    })
+                    .then(res => {
+                        if (!res.ok) throw new Error("فشل الخادم في إكمال المعاملة");
+                        return res.json();
+                    })
+                    .then(response => {
+                        window.closeSupportModal();
+                        window.openSuccessModal(`تم إرسال ${amount} Pi بنجاح! شكراً لدعمك.`);
+                    })
+                    .catch(error => {
+                        console.error("خطأ في إكمال المعاملة عبر الخادم:", error);
+                        window.closeSupportModal();
+                        window.openSuccessModal(`تم إرسال ${amount} Pi بنجاح! شكراً لدعمك.`);
+                    });
+                },
+                onCancel: function(paymentId) { 
+                    alert("تم إلغاء عملية الدفع."); 
+                    window.closeSupportModal();
+                },
+                onError: function(error, payment) { 
+                    if(error && (error.type === 'timeout' || error.message?.includes('timeout'))) {
+                        alert("انتهى وقت استجابة الشبكة (Timeout). يرجى التحقق من رصيدك ومحفظتك.");
+                    } else {
+                        alert("حدث خطأ أثناء معالجة الدفع: " + (error.message || "غير معروف"));
+                    }
+                    window.closeSupportModal();
+                }
+            });
+        }
+
+        window.toggleLike = async function(postId) {
+            const postIndex = posts.findIndex(p => p.id === postId);
+            if(postIndex === -1) return;
+
+            const post = posts[postIndex];
+            post.likedByMe = !post.likedByMe;
+            post.likes += post.likedByMe ? 1 : -1;
+            renderPosts();
+
+            try {
+                const postRef = doc(db, "posts", postId);
+                await updateDoc(postRef, { likes: post.likes });
+            } catch (error) {
+                console.error("خطأ في تحديث الإعجاب:", error);
+                post.likedByMe = !post.likedByMe;
+                post.likes += post.likedByMe ? 1 : -1;
+                renderPosts();
+            }
+        }
+
+        window.submitComment = async function(postId) {
+            const inputId = `comment-input-${postId}`;
+            const input = document.getElementById(inputId);
+            if(!input) return;
+            const text = input.value.trim();
+            if(!text) return;
+
+            const postIndex = posts.findIndex(p => p.id === postId);
+            if(postIndex === -1) return;
+
+            const post = posts[postIndex];
+            const newComment = { author: currentUser.username, content: text };
+            post.comments = post.comments || [];
+            post.comments.push(newComment);
+            renderPosts();
+
+            try {
+                const postRef = doc(db, "posts", postId);
+                await updateDoc(postRef, { comments: post.comments });
+            } catch (error) {
+                console.error("خطأ في إضافة التعليق:", error);
+            }
+        }
+
+        function listenToPostsFromFirebase() {
+            const q = query(collection(db, "posts"), orderBy("timestamp", "desc"));
+            onSnapshot(q, (snapshot) => {
+                let fetchedPosts = [];
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    let formattedTime = "الآن";
+                    if (data.timestamp && typeof data.timestamp.seconds !== 'undefined') {
+                        formattedTime = new Date(data.timestamp.seconds * 1000).toLocaleString('ar-EG', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' });
+                    }
+                    fetchedPosts.push({
+                        id: doc.id,
+                        author: data.author || "رائد مجهول",
+                        badge: data.badge || "رائد",
+                        badgeColor: data.badgeColor || "bg-amber-500/10 text-amber-400",
+                        avatar: data.avatar || "https://api.dicebear.com/7.x/bottts/svg?seed=Pioneer",
+                        content: data.content || "",
+                        image: data.image || null,
+                        video: data.video || null,
+                        timestamp: formattedTime,
+                        likes: data.likes || 0,
+                        likedByMe: false, 
+                        comments: data.comments || []
+                    });
+                });
+                
+                fetchedPosts.forEach(newPost => {
+                    const existingPost = posts.find(p => p.id === newPost.id);
+                    if(existingPost) newPost.likedByMe = existingPost.likedByMe;
+                });
+
+                posts = fetchedPosts;
+                renderPosts();
+            });
+        }
+
+        window.createNewPost = async function() {
+            const postInput = document.getElementById('post-input');
+            const textContent = postInput ? postInput.value.trim() : "";
+            const postBtn = document.getElementById('main-post-btn');
+            
+            if (!textContent && !selectedVideoFile && !selectedImageFile) {
+                alert("من فضلك، اكتب نصاً أو ارفع صورة/فيديو أولاً لنشر المحتوى.");
+                return;
+            }
+
+            if (postBtn) {
+                postBtn.disabled = true;
+                postBtn.innerText = "⏳ جاري الرفع والمزامنة...";
+                postBtn.className = "bg-gray-600 text-gray-400 font-bold px-5 py-1.5 rounded-lg text-sm cursor-not-allowed shadow-none";
+            }
+
+            let finalImageUrl = null;
+            let finalVideoUrl = null;
+            const UPLOAD_PRESET = "piecho_preset";
+
+            try {
+                if (selectedImageFile) {
+                    const formData = new FormData();
+                    formData.append("file", selectedImageFile);
+                    formData.append("upload_preset", UPLOAD_PRESET);
+                    const response = await fetch("https://api.cloudinary.com/v1_1/s8z1mgu4/image/upload", { method: "POST", body: formData });
+                    const data = await response.json();
+                    if (data.secure_url) finalImageUrl = data.secure_url.replace("/upload/", "/upload/q_auto,f_auto/");
+                    else throw new Error("فشل رفع الصورة");
+                }
+
+                if (selectedVideoFile) {
+                    const formData = new FormData();
+                    formData.append("file", selectedVideoFile);
+                    formData.append("upload_preset", UPLOAD_PRESET);
+                    const response = await fetch("https://api.cloudinary.com/v1_1/s8z1mgu4/video/upload", { method: "POST", body: formData });
+                    const data = await response.json();
+                    if (data.secure_url) finalVideoUrl = data.secure_url.replace("/upload/", "/upload/q_auto,f_auto/");
+                    else throw new Error("فشل رفع مقطع الفيديو");
+                }
+
+                await addDoc(collection(db, "posts"), {
+                    author: currentUser.username,
+                    badge: isBypassActive ? "وضع تجريبي" : "رائد وباني",
+                    badgeColor: isBypassActive ? "bg-yellow-500/10 text-yellow-400" : "bg-green-500/10 text-green-400",
+                    avatar: currentUser.avatar,
+                    content: textContent,
+                    image: finalImageUrl, 
+                    video: finalVideoUrl, 
+                    timestamp: serverTimestamp(),
+                    likes: 0,
+                    comments: []
+                });
+
+                if (postInput) postInput.value = "";
+                window.removeVideoSelection();
+                window.removeImageSelection();
+                
+            } catch (error) {
+                console.error("Upload error:", error);
+                alert("عذراً، فشل رفع الميديا. يرجى التأكد من اتصال الإنترنت.");
+            } finally {
+                if (postBtn) {
+                    postBtn.disabled = false;
+                    postBtn.innerText = "نشر المنشور";
+                    postBtn.className = "bg-[#e5a93b] text-[#0b0713] font-bold px-5 py-1.5 rounded-lg text-sm hover:bg-yellow-500 transition-all shadow-md shadow-[#e5a93b]/10";
+                }
+            }
+        }
+
+        function renderPosts() {
+            const container = document.getElementById('feed-container');
+            if (!container) return;
+            container.innerHTML = "";
+            
+            let filteredPosts = posts;
+            if (searchQuery) {
+                filteredPosts = posts.filter(p => 
+                    p.content.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                    p.author.toLowerCase().includes(searchQuery.toLowerCase())
+                );
+            }
+
+            if (filteredPosts.length === 0) {
+                container.innerHTML = `<div class="bg-gradient-to-b from-[#1b0f2e] to-[#130a21] border-2 border-[#e5a93b]/30 rounded-2xl p-8 text-center text-gray-400 text-xs">لا توجد منشورات تطابق بحثك.</div>`;
+                return;
+            }
+
+            filteredPosts.forEach(post => {
+                let mediaHTML = '';
+                if (post.video) {
+                    mediaHTML = `<div class="mt-3 rounded-xl overflow-hidden border border-[#e5a93b]/40 bg-black max-h-80 flex justify-center items-center"><video class="w-full max-h-80" controls src="${post.video}"></video></div>`;
+                } else if (post.image) {
+                    mediaHTML = `<div class="mt-3 rounded-xl overflow-hidden border border-[#e5a93b]/40 bg-black max-h-80 flex justify-center items-center"><img class="w-full max-h-80 object-cover" src="${post.image}"></div>`;
+                }
+                
+                let commentsHTML = '';
+                if (post.comments && post.comments.length > 0) {
+                    commentsHTML = `<div class="mt-3 pt-3 border-t border-[#e5a93b]/20 space-y-2">
+                            ${post.comments.map(c => `
+                                <div class="bg-[#130a21] p-2.5 rounded-xl text-xs flex gap-2 border border-[#e5a93b]/10">
+                                    <span class="font-bold text-[#e5a93b]">${c.author}:</span>
+                                    <span class="text-gray-300">${c.content}</span>
+                                </div>
+                            `).join('')}
+                        </div>`;
+                }
+
+                let commentInputHTML = `
+                    <div class="mt-3 flex gap-2">
+                        <input type="text" id="comment-input-${post.id}" placeholder="اكتب تعليقاً..." class="flex-1 bg-[#130a21] rounded-lg px-3 py-1.5 text-xs text-gray-200 border border-[#e5a93b]/30 focus:border-[#e5a93b] outline-none">
+                        <button onclick="window.submitComment('${post.id}')" class="bg-[#e5a93b] hover:bg-yellow-500 text-[#0b0713] px-4 rounded-lg text-xs font-bold transition-all">إرسال</button>
+                    </div>
+                `;
+
+                const postHTML = `
+                    <div class="bg-gradient-to-b from-[#1b0f2e] to-[#130a21] border-2 border-[#e5a93b] shadow-[0_0_15px_rgba(229,169,59,0.15)] rounded-2xl p-5 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <img src="${post.avatar}" alt="${post.author}" class="w-10 h-10 rounded-full border border-[#e5a93b]/40 object-cover">
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <h4 class="font-bold text-sm text-gray-100">${post.author}</h4>
+                                        ${post.badge ? `<span class="text-[9px] px-2 py-0.5 rounded-full ${post.badgeColor} font-semibold">${post.badge}</span>` : ''}
+                                    </div>
+                                    <span class="text-[10px] text-gray-500">${post.timestamp}</span>
+                                </div>
+                            </div>
+                            <button onclick="window.openSupportModal('${post.id}', '${post.author}')" class="bg-[#e5a93b]/10 text-[#e5a93b] border border-[#e5a93b]/30 hover:bg-[#e5a93b] hover:text-[#0b0713] px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5">
+                                <i class="fa-solid fa-pi"></i>دعم الرائد
+                            </button>
+                        </div>
+                        <p class="text-sm text-gray-300 leading-relaxed whitespace-pre-line">${post.content}</p>
+                        ${mediaHTML}
+                        <div class="flex items-center gap-6 pt-3 border-t border-[#e5a93b]/20 text-xs text-gray-400">
+                            <button onclick="window.toggleLike('${post.id}')" class="flex items-center gap-1.5 hover:text-red-500 transition-colors ${post.likedByMe ? 'text-red-500' : ''}">
+                                <i class="${post.likedByMe ? 'fa-solid' : 'fa-regular'} fa-heart text-sm"></i>
+                                <span>${post.likes}</span>
+                            </button>
+                            <div class="flex items-center gap-1.5 cursor-pointer hover:text-amber-400">
+                                <i class="fa-regular fa-comment text-sm"></i>
+                                <span>${post.comments ? post.comments.length : 0}</span>
+                            </div>
+                        </div>
+                        ${commentsHTML}
+                        ${commentInputHTML}
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', postHTML);
+            });
+        }
+
+        window.openEditProfileModal = function() {
+            document.getElementById('modal-avatar-preview').src = currentUser.avatar;
+            document.getElementById('edit-username').value = currentUser.username;
+            document.getElementById('edit-bio').value = currentUser.bio || "";
+            document.getElementById('profile-modal').classList.remove('hidden');
+            document.getElementById('profile-modal').classList.add('flex');
+            selectedAvatarFile = null; 
+        }
+
+        window.closeEditProfileModal = function() {
+            document.getElementById('profile-modal').classList.add('hidden');
+            document.getElementById('profile-modal').classList.remove('flex');
+            selectedAvatarFile = null;
+        }
+
+        window.previewAvatarChange = function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                selectedAvatarFile = file; 
+                const reader = new FileReader();
+                reader.onload = function(e) { document.getElementById('modal-avatar-preview').src = e.target.result; };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        window.saveUserProfile = async function() {
+            const newName = document.getElementById('edit-username').value.trim();
+            const newBio = document.getElementById('edit-bio').value.trim();
+            const saveBtn = document.querySelector("#profile-modal button[onclick='window.saveUserProfile()']");
+            
+            if (!newName) return;
+            if (saveBtn) { saveBtn.disabled = true; saveBtn.innerText = "⏳ جاري حفظ ورفع البيانات..."; }
+
+            try {
+                let finalAvatarUrl = currentUser.avatar;
+                if (selectedAvatarFile) {
+                    const formData = new FormData();
+                    formData.append("file", selectedAvatarFile);
+                    formData.append("upload_preset", "piecho_preset");
+
+                    const response = await fetch("https://api.cloudinary.com/v1_1/s8z1mgu4/image/upload", { method: "POST", body: formData });
+                    const data = await response.json();
+                    if (data.secure_url) finalAvatarUrl = data.secure_url;
+                }
+
+                currentUser.username = newName;
+                currentUser.bio = newBio;
+                currentUser.avatar = finalAvatarUrl;
+                
+                updateUserProfileDOM();
+                safeSetItem('piecho_user_v2', JSON.stringify(currentUser));
+                await saveProfileToFirebase(currentUser);
+                window.closeEditProfileModal();
+            } catch (error) {
+                alert("حدث خطأ أثناء الرفع.");
+            } finally {
+                if (saveBtn) { saveBtn.disabled = false; saveBtn.innerText = "حفظ التغييرات"; }
+            }
+        }
+
+        if (document.readyState === "loading") {
+            window.addEventListener('DOMContentLoaded', initApp);
+        } else {
+            initApp();
+        }
+    </script>
+</body>
+</html>
